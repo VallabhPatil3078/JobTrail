@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/jobtrail_db}
+    username: ${SPRING_DATASOURCE_USERNAME:jobtrail_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:local_dev_password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+jwt:
+  secret: ${JWT_SECRET:your_very_long_and_secure_local_development_secret_key_12345}
+  expiration: 86400000

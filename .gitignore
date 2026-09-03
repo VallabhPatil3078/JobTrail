@@ -1,2 +1,7 @@
-# Environmental vars
+# environmental vars
 .env
+
+.vscode
+
+jobtrail-build-plan.md
+Plan
