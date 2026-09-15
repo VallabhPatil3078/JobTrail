@@ -3,7 +3,10 @@ package com.jobtrail.backend.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -29,13 +32,16 @@ public class Application {
     private String jobUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "application_status")
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(columnDefinition = "application_status", nullable = false)
     private StatusEnum status;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(columnDefinition = "data_source", nullable = false)
     private DataSourceEnum source;
 
+    @Column(columnDefinition = "NUMERIC(5,2)")
     private Double confidence;
 
     @Column(name = "date_applied")
