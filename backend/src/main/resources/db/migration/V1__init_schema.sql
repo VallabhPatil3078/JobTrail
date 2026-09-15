@@ -16,7 +16,7 @@ CREATE TABLE applications (
     role VARCHAR(255) NOT NULL,
     job_description TEXT,
     job_url VARCHAR(512),
-    status application_status DEFAULT 'APPLIED',
+    status application_status NOT NULL DEFAULT 'APPLIED',
     source data_source NOT NULL,
     confidence NUMERIC(5,2),
     date_applied DATE,

@@ -1,0 +1,7 @@
+tasks:
+  compile:
+    command: "cd backend && mvn clean compile"
+    depends_on: []
+  test:
+    command: "cd backend && mvn test"
+    depends_on: ["compile"]
