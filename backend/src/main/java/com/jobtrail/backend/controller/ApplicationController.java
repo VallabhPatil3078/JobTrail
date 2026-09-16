@@ -46,4 +46,17 @@ public class ApplicationController {
         applicationService.deleteApplication(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApplicationResponse> updateApplicationStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody com.jobtrail.backend.dto.StatusHistoryDto.StatusUpdateRequest request) {
+        return ResponseEntity.ok(applicationService.updateApplicationStatus(id, request));
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<com.jobtrail.backend.dto.StatusHistoryDto.StatusHistoryResponse>> getApplicationHistory(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(applicationService.getApplicationHistory(id));
+    }
 }
