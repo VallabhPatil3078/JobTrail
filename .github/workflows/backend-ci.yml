@@ -25,4 +25,6 @@ jobs:
         cache: maven
         
     - name: Build and Test
-      run: ./mvnw clean test
+      run: |
+        chmod +x mvnw
+        ./mvnw clean test
