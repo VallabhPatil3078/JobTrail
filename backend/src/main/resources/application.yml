@@ -1,6 +1,8 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/jobtrail_db}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/jobtrail_db}
     username: ${SPRING_DATASOURCE_USERNAME:jobtrail_user}
     password: ${SPRING_DATASOURCE_PASSWORD:local_dev_password}
   jpa:
@@ -17,3 +19,7 @@ spring:
 jwt:
   secret: ${JWT_SECRET:your_very_long_and_secure_local_development_secret_key_12345}
   expiration: 86400000
+
+google:
+  client-id: ${GOOGLE_CLIENT_ID:test-client-id}
+  client-secret: ${GOOGLE_CLIENT_SECRET:test-client-secret}
