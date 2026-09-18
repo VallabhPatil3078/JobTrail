@@ -1,7 +1,23 @@
+version: 1
+
 tasks:
   compile:
-    command: "cd backend && mvn clean compile"
+    # 1. NEW: Orbit natively handles directories now, no need to `cd` in the command!
+    command: "mvn clean compile"
+    working_dir: "./backend"
     depends_on: []
+    
+    # 2. NEW: Smart path filtering! Orbit will completely SKIP this task 
+    # (and the test task that depends on it) if you didn't touch Java or Maven files.
+    trigger_paths: ["backend/**/*.java", "backend/pom.xml"]
+    
+    # 3. NEW: Per-task timeouts! Give compile up to 2 minutes, instead of the 10m default.
+    timeout: "2m"
+
   test:
-    command: "cd backend && mvn test"
+    command: "mvn test"
+    working_dir: "./backend"
     depends_on: ["compile"]
+    # You don't need `trigger_paths` here! Orbit's Cascade-Skip logic will 
+    # automatically skip the test task if the compile task was skipped.
+    timeout: "5m"
