@@ -15,6 +15,11 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleDuplicateApplicationException(DuplicateApplicationException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
         problemDetail.setTitle("Duplicate Application");
+        if (ex.getExistingId() != null) {
+            problemDetail.setProperty("id", ex.getExistingId());
+            problemDetail.setProperty("company", ex.getExistingCompany());
+            problemDetail.setProperty("role", ex.getExistingRole());
+        }
         return problemDetail;
     }
 
