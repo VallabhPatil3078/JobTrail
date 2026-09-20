@@ -34,6 +34,7 @@ public class GmailService {
     private final JsonFactory googleJsonFactory;
     private final UserRepository userRepository;
     private final RawEmailRepository rawEmailRepository;
+    private final EmailParsingService emailParsingService;
 
     @Value("${google.client-id}")
     private String clientId;
@@ -85,6 +86,10 @@ public class GmailService {
                 }
             }
         }
+        
+        // After fetching new emails, run the parser
+        log.info("Finished fetching emails. Triggering email parser...");
+        emailParsingService.processUnprocessedEmails();
     }
 
     private void syncEmailsForUser(User user) throws Exception {
