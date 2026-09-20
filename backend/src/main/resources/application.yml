@@ -2,13 +2,13 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/jobtrail_db}
-    username: ${SPRING_DATASOURCE_USERNAME:jobtrail_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:local_dev_password}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -17,9 +17,12 @@ spring:
     baseline-on-migrate: true
 
 jwt:
-  secret: ${JWT_SECRET:your_very_long_and_secure_local_development_secret_key_12345}
+  secret: ${JWT_SECRET}
   expiration: 86400000
 
 google:
-  client-id: ${GOOGLE_CLIENT_ID:test-client-id}
-  client-secret: ${GOOGLE_CLIENT_SECRET:test-client-secret}
+  client-id: ${GOOGLE_CLIENT_ID}
+  client-secret: ${GOOGLE_CLIENT_SECRET}
+
+app:
+  encryption-key: ${ENCRYPTION_KEY}

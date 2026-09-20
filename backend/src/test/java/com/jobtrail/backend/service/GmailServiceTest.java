@@ -42,6 +42,9 @@ class GmailServiceTest {
     @Mock
     private RawEmailRepository rawEmailRepository;
 
+    @Mock
+    private EncryptionService encryptionService;
+
     @InjectMocks
     private GmailService gmailService;
 
@@ -85,12 +88,14 @@ class GmailServiceTest {
                 .thenReturn(mockTokenResponse);
 
         when(userRepository.findById(mockUserId)).thenReturn(Optional.of(mockUser));
+        when(encryptionService.encrypt(mockRefreshToken)).thenReturn("encrypted-token");
 
         gmailService.exchangeCode(mockCode, mockUserId);
 
         verify(userRepository, times(1)).findById(mockUserId);
         verify(userRepository, times(1)).save(mockUser);
-        assertEquals(mockRefreshToken, mockUser.getEncryptedRefreshToken());
+        assertEquals("encrypted-token", mockUser.getEncryptedRefreshToken());
+        assertEquals("CONNECTED", mockUser.getGmailConnectionStatus());
     }
 
     @Test

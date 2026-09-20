@@ -1,0 +1,8 @@
+app:
+  encryption-key: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=" # Base64 for 32-byte key
+google:
+  client-id: dummy
+  client-secret: dummy
+jwt:
+  secret: "dummy-secret-key-that-is-at-least-32-bytes-long"
+  expiration: 86400000

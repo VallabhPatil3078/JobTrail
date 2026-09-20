@@ -12,6 +12,7 @@ import com.jobtrail.backend.model.RawEmail;
 import com.jobtrail.backend.model.User;
 import com.jobtrail.backend.repository.RawEmailRepository;
 import com.jobtrail.backend.repository.UserRepository;
+import com.jobtrail.backend.exception.DecryptionException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +36,7 @@ public class GmailService {
     private final UserRepository userRepository;
     private final RawEmailRepository rawEmailRepository;
     private final EmailParsingService emailParsingService;
+    private final EncryptionService encryptionService;
 
     @Value("${google.client-id}")
     private String clientId;
@@ -61,11 +63,11 @@ public class GmailService {
             String refreshToken = response.getRefreshToken();
             
             User user = userRepository.findById(userId).orElseThrow();
-            // In a production app, encrypt this token. For local MVP, storing directly.
             if (refreshToken != null) {
-                user.setEncryptedRefreshToken(refreshToken);
+                user.setEncryptedRefreshToken(encryptionService.encrypt(refreshToken));
+                user.setGmailConnectionStatus("CONNECTED");
                 userRepository.save(user);
-                log.info("Saved refresh token for user {}", user.getEmail());
+                log.info("Saved encrypted refresh token for user {}", user.getEmail());
             }
         } catch (Exception e) {
             log.error("Failed to exchange auth code", e);
@@ -79,8 +81,16 @@ public class GmailService {
         List<User> users = userRepository.findAll();
         for (User user : users) {
             if (user.getEncryptedRefreshToken() != null && !user.getEncryptedRefreshToken().isEmpty()) {
+                if ("NEEDS_RECONNECT".equals(user.getGmailConnectionStatus())) {
+                    log.info("Skipping user {} because they need to reconnect.", user.getEmail());
+                    continue;
+                }
                 try {
                     syncEmailsForUser(user);
+                } catch (DecryptionException de) {
+                    log.warn("Decryption failed for user {}. Marking as NEEDS_RECONNECT", user.getEmail());
+                    user.setGmailConnectionStatus("NEEDS_RECONNECT");
+                    userRepository.save(user);
                 } catch (Exception e) {
                     log.error("Failed to sync emails for user {}", user.getEmail(), e);
                 }
@@ -93,12 +103,13 @@ public class GmailService {
     }
 
     private void syncEmailsForUser(User user) throws Exception {
+        String decryptedToken = encryptionService.decrypt(user.getEncryptedRefreshToken());
         GoogleCredential credential = new GoogleCredential.Builder()
                 .setTransport(httpTransport)
                 .setJsonFactory(googleJsonFactory)
                 .setClientSecrets(clientId, clientSecret)
                 .build()
-                .setRefreshToken(user.getEncryptedRefreshToken());
+                .setRefreshToken(decryptedToken);
 
         Gmail gmail = new Gmail.Builder(httpTransport, googleJsonFactory, credential)
                 .setApplicationName(APPLICATION_NAME)
