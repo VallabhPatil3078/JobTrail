@@ -9,8 +9,11 @@ import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "applications")
 public class Application {
@@ -43,6 +46,10 @@ public class Application {
 
     @Column(columnDefinition = "NUMERIC(5,2)")
     private Double confidence;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_raw_email_id")
+    private RawEmail sourceRawEmail;
 
     @Column(name = "date_applied")
     private LocalDate dateApplied;

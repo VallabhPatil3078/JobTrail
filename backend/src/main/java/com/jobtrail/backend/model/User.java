@@ -1,11 +1,13 @@
 package com.jobtrail.backend.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "users")
 public class User {
@@ -22,6 +24,12 @@ public class User {
 
     @Column(name = "encrypted_refresh_token", length = 512)
     private String encryptedRefreshToken;
+
+    @Column(name = "gmail_connection_status", nullable = false)
+    private String gmailConnectionStatus = "DISCONNECTED";
+
+    @Column(name = "last_synced_at")
+    private LocalDateTime lastSyncedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
