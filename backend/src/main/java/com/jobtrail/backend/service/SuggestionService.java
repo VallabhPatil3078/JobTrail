@@ -51,10 +51,10 @@ public class SuggestionService {
                 if (app.getDateApplied() != null && dateApplied != null) {
                     long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(app.getDateApplied(), dateApplied);
                     if (Math.abs(daysBetween) <= 3) {
-                        throw new com.jobtrail.backend.exception.DuplicateApplicationException("A similar application for this role already exists within 3 days.");
+                        throw new com.jobtrail.backend.exception.DuplicateApplicationException("A similar application for this role already exists within 3 days.", app.getId(), app.getCompany(), app.getRole());
                     }
                 } else if (app.getDateApplied() == null && dateApplied == null) {
-                    throw new com.jobtrail.backend.exception.DuplicateApplicationException("An application for this role already exists.");
+                    throw new com.jobtrail.backend.exception.DuplicateApplicationException("An application for this role already exists.", app.getId(), app.getCompany(), app.getRole());
                 }
             }
         }

@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface ApplicationRepository extends JpaRepository<Application, Long> {
     List<Application> findByCompanyIgnoreCase(String company);
+    long countByStatusNotIn(List<Application.StatusEnum> statuses);
+    long countBySource(Application.DataSourceEnum source);
 }

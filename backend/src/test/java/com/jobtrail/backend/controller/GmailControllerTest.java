@@ -78,7 +78,7 @@ class GmailControllerTest {
 
         mockMvc.perform(get("/api/gmail/callback").param("code", mockCode).param("state", mockState))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("http://localhost:5173?gmail_connected=true"));
+                .andExpect(redirectedUrl("http://localhost:5173/settings?gmail_connected=true"));
 
         verify(gmailService, times(1)).exchangeCode(mockCode, 1L);
     }

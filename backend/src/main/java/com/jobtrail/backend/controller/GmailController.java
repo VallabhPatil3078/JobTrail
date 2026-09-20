@@ -35,17 +35,30 @@ public class GmailController {
     }
 
     @GetMapping("/callback")
-    public RedirectView callback(@RequestParam("code") String code, @RequestParam("state") String state) {
-        Long userId = jwtService.extractUserIdFromStateToken(state);
-        gmailService.exchangeCode(code, userId);
-        return new RedirectView(frontendUrl + "?gmail_connected=true");
+    public RedirectView callback(
+            @RequestParam(value = "code", required = false) String code, 
+            @RequestParam(value = "state", required = false) String state,
+            @RequestParam(value = "error", required = false) String error) {
+        
+        if (error != null) {
+            return new RedirectView(frontendUrl + "/settings?gmail_error=auth_failed");
+        }
+        
+        try {
+            Long userId = jwtService.extractUserIdFromStateToken(state);
+            gmailService.exchangeCode(code, userId);
+            return new RedirectView(frontendUrl + "/settings?gmail_connected=true");
+        } catch (Exception e) {
+            return new RedirectView(frontendUrl + "/settings?gmail_error=auth_failed");
+        }
     }
 
     @GetMapping("/status")
     public ResponseEntity<String> status() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         User user = userRepository.findByEmail(auth.getName()).orElseThrow();
-        return ResponseEntity.ok("{\"status\":\"" + user.getGmailConnectionStatus() + "\"}");
+        String lastSyncedAt = user.getLastSyncedAt() != null ? user.getLastSyncedAt().toString() : "";
+        return ResponseEntity.ok("{\"status\":\"" + user.getGmailConnectionStatus() + "\",\"lastSyncedAt\":\"" + lastSyncedAt + "\"}");
     }
 
 

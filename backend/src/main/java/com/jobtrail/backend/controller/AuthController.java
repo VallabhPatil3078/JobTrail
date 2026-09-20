@@ -29,6 +29,11 @@ public class AuthController {
         this.jwtService = jwtService;
     }
 
+    @GetMapping("/registration-open")
+    public ResponseEntity<Boolean> isRegistrationOpen() {
+        return ResponseEntity.ok(userRepository.count() == 0);
+    }
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
         if (userRepository.count() > 0) {
