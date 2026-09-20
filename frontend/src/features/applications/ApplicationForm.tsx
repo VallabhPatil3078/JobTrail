@@ -19,7 +19,7 @@ export function ApplicationForm({ onSuccess }: ApplicationFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate(
-      { company, role, dateApplied },
+      { company, role, dateApplied, source: 'MANUAL' },
       {
         onSuccess: () => {
           toast.success('Application added manually');

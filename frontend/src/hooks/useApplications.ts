@@ -47,7 +47,7 @@ export const useApplicationHistory = (id: number, enabled: boolean) => {
 export const useCreateApplication = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { company: string; role: string; dateApplied: string }) => {
+    mutationFn: async (data: { company: string; role: string; dateApplied: string; source: string }) => {
       const res = await api.post('/applications', data);
       return res.data;
     },
