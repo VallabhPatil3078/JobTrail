@@ -15,7 +15,8 @@ public class ApplicationDto {
         String jobUrl,
         LocalDate dateApplied,
         @NotNull(message = "Source is required") Application.DataSourceEnum source,
-        Double confidence
+        Double confidence,
+        Long sourceRawEmailId
     ) {}
 
     public record ApplicationResponse(

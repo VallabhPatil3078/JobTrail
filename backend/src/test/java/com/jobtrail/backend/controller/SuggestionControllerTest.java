@@ -1,13 +1,15 @@
 package com.jobtrail.backend.controller;
 
 import com.jobtrail.backend.dto.ApplicationDto;
+import com.jobtrail.backend.dto.SuggestedApplicationDto;
 import com.jobtrail.backend.model.Application;
 import com.jobtrail.backend.model.RawEmail;
 import com.jobtrail.backend.model.SuggestedApplication;
 import com.jobtrail.backend.repository.SuggestedApplicationRepository;
 import com.jobtrail.backend.security.JwtService;
 import com.jobtrail.backend.security.UserDetailsServiceImpl;
-import com.jobtrail.backend.service.ApplicationService;
+import com.jobtrail.backend.security.UserDetailsServiceImpl;
+import com.jobtrail.backend.service.SuggestionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -48,13 +50,7 @@ class SuggestionControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private SuggestedApplicationRepository suggestionRepository;
-
-    @MockitoBean
-    private ApplicationService applicationService;
-
-    @MockitoBean
-    private com.jobtrail.backend.repository.ApplicationRepository applicationRepository;
+    private SuggestionService suggestionService;
 
     @MockitoBean
     private JwtService jwtService;
@@ -82,8 +78,11 @@ class SuggestionControllerTest {
 
     @Test
     void getPendingSuggestions_ShouldReturnList() throws Exception {
-        when(suggestionRepository.findByStatus(SuggestedApplication.SuggestionStatusEnum.PENDING))
-                .thenReturn(List.of(suggestion));
+        SuggestedApplicationDto.SuggestedApplicationResponse response = new SuggestedApplicationDto.SuggestedApplicationResponse(
+                100L, 1L, "Google", "Backend Engineer", LocalDate.now(), 95.0, SuggestedApplication.SuggestionStatusEnum.PENDING, LocalDateTime.now()
+        );
+        when(suggestionService.getPendingSuggestions())
+                .thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/suggestions"))
                 .andExpect(status().isOk())
@@ -94,15 +93,13 @@ class SuggestionControllerTest {
 
     @Test
     void confirmSuggestion_ShouldCreateApplicationAndMarkConfirmed() throws Exception {
-        when(suggestionRepository.findById(100L)).thenReturn(Optional.of(suggestion));
-        
         ApplicationDto.ApplicationResponse mockResponse = new ApplicationDto.ApplicationResponse(
-                1L, "Google", "Backend Engineer", null, null,
+                1L, "Google Inc.", "Senior Backend Engineer", null, null,
                 Application.StatusEnum.APPLIED, Application.DataSourceEnum.EMAIL_DETECTED,
                 95.0, LocalDate.now(), LocalDateTime.now(), LocalDateTime.now()
         );
 
-        when(applicationService.createApplication(any(ApplicationDto.ApplicationRequest.class)))
+        when(suggestionService.confirmSuggestion(eq(100L), any(SuggestedApplicationDto.SuggestionConfirmRequest.class)))
                 .thenReturn(mockResponse);
 
         String jsonRequest = "{\"company\":\"Google Inc.\", \"role\":\"Senior Backend Engineer\"}";
@@ -111,29 +108,16 @@ class SuggestionControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonRequest))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.company").value("Google"));
-
-        // Verify status changed
-        assertThat(suggestion.getStatus()).isEqualTo(SuggestedApplication.SuggestionStatusEnum.CONFIRMED);
-        verify(suggestionRepository).save(suggestion);
-
-        // Verify that user's edits were used
-        ArgumentCaptor<ApplicationDto.ApplicationRequest> appReqCaptor = ArgumentCaptor.forClass(ApplicationDto.ApplicationRequest.class);
-        verify(applicationService).createApplication(appReqCaptor.capture());
+                .andExpect(jsonPath("$.company").value("Google Inc."));
         
-        ApplicationDto.ApplicationRequest captured = appReqCaptor.getValue();
-        assertThat(captured.company()).isEqualTo("Google Inc.");
-        assertThat(captured.role()).isEqualTo("Senior Backend Engineer");
+        verify(suggestionService).confirmSuggestion(eq(100L), any());
     }
 
     @Test
     void rejectSuggestion_ShouldMarkRejected() throws Exception {
-        when(suggestionRepository.findById(100L)).thenReturn(Optional.of(suggestion));
-
         mockMvc.perform(post("/api/suggestions/100/reject"))
                 .andExpect(status().isOk());
 
-        assertThat(suggestion.getStatus()).isEqualTo(SuggestedApplication.SuggestionStatusEnum.REJECTED);
-        verify(suggestionRepository).save(suggestion);
+        verify(suggestionService).rejectSuggestion(100L);
     }
 }

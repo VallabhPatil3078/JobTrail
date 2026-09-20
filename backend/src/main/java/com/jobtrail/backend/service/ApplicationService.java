@@ -12,6 +12,7 @@ import com.jobtrail.backend.model.Application.StatusEnum;
 import com.jobtrail.backend.model.StatusHistory;
 import com.jobtrail.backend.repository.ApplicationRepository;
 import com.jobtrail.backend.repository.StatusHistoryRepository;
+import com.jobtrail.backend.repository.RawEmailRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final StatusHistoryRepository statusHistoryRepository;
     private final ApplicationMapper applicationMapper;
+    private final RawEmailRepository rawEmailRepository;
 
     // State Machine Validation Map
     private static final Map<StatusEnum, Set<StatusEnum>> VALID_TRANSITIONS = Map.of(
@@ -56,6 +58,9 @@ public class ApplicationService {
     @Transactional
     public ApplicationResponse createApplication(ApplicationRequest request) {
         Application application = applicationMapper.toEntity(request);
+        if (request.sourceRawEmailId() != null) {
+            application.setSourceRawEmail(rawEmailRepository.getReferenceById(request.sourceRawEmailId()));
+        }
         Application saved = applicationRepository.save(application);
         return applicationMapper.toResponse(saved);
     }
