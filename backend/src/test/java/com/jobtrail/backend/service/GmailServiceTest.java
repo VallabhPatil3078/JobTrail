@@ -52,6 +52,7 @@ class GmailServiceTest {
     void setUp() {
         ReflectionTestUtils.setField(gmailService, "clientId", "mock-client-id");
         ReflectionTestUtils.setField(gmailService, "clientSecret", "mock-client-secret");
+        ReflectionTestUtils.setField(gmailService, "redirectUri", "http://localhost:8080/api/gmail/callback");
     }
 
     @Test
@@ -61,9 +62,10 @@ class GmailServiceTest {
         
         when(flow.newAuthorizationUrl()).thenReturn(requestUrl);
         when(requestUrl.setRedirectUri(anyString())).thenReturn(requestUrl);
+        when(requestUrl.setState(anyString())).thenReturn(requestUrl);
         when(requestUrl.build()).thenReturn(mockAuthUrl);
 
-        String result = gmailService.getAuthorizationUrl();
+        String result = gmailService.getAuthorizationUrl("mock-state");
 
         assertEquals(mockAuthUrl, result);
         verify(flow, times(1)).newAuthorizationUrl();

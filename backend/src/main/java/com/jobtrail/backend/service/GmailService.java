@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
@@ -44,12 +45,16 @@ public class GmailService {
     @Value("${google.client-secret}")
     private String clientSecret;
 
-    private static final String REDIRECT_URI = "http://localhost:8080/api/gmail/callback";
-    private static final String APPLICATION_NAME = "JobTrail";
+    @Value("${app.redirect-uri:http://localhost:8080/api/gmail/callback}")
+    private String redirectUri;
 
-    public String getAuthorizationUrl() {
+    private static final String APPLICATION_NAME = "JobTrail";
+    private final AtomicBoolean isSyncing = new AtomicBoolean(false);
+
+    public String getAuthorizationUrl(String state) {
         return flow.newAuthorizationUrl()
-                .setRedirectUri(REDIRECT_URI)
+                .setRedirectUri(redirectUri)
+                .setState(state)
                 .build();
     }
 
@@ -57,7 +62,7 @@ public class GmailService {
     public void exchangeCode(String code, Long userId) {
         try {
             TokenResponse response = flow.newTokenRequest(code)
-                    .setRedirectUri(REDIRECT_URI)
+                    .setRedirectUri(redirectUri)
                     .execute();
             
             String refreshToken = response.getRefreshToken();
@@ -76,8 +81,32 @@ public class GmailService {
     }
 
     @Scheduled(fixedDelay = 900000) // 15 minutes
-    public void syncEmails() {
-        log.info("Starting scheduled Gmail sync...");
+    public void scheduledSync() {
+        if (isSyncing.compareAndSet(false, true)) {
+            try {
+                executeSync();
+            } finally {
+                isSyncing.set(false);
+            }
+        } else {
+            log.info("Scheduled sync skipped - sync already in progress.");
+        }
+    }
+    
+    public boolean triggerManualSync() {
+        if (isSyncing.compareAndSet(false, true)) {
+            try {
+                executeSync();
+                return true;
+            } finally {
+                isSyncing.set(false);
+            }
+        }
+        return false;
+    }
+
+    private void executeSync() {
+        log.info("Starting Gmail sync...");
         List<User> users = userRepository.findAll();
         for (User user : users) {
             if (user.getEncryptedRefreshToken() != null && !user.getEncryptedRefreshToken().isEmpty()) {
@@ -97,7 +126,6 @@ public class GmailService {
             }
         }
         
-        // After fetching new emails, run the parser
         log.info("Finished fetching emails. Triggering email parser...");
         emailParsingService.processUnprocessedEmails();
     }

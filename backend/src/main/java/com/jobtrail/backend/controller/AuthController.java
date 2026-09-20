@@ -31,6 +31,9 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
+        if (userRepository.count() > 0) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Registration is currently closed");
+        }
         if (userRepository.existsByEmail(req.email())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already registered");
         }
