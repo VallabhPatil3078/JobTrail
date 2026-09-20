@@ -23,6 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -144,6 +147,10 @@ public class GmailService {
                 .build();
 
         String query = "subject:(application OR interview OR offer OR \"thank you for applying\")";
+        if (user.getLastSyncedAt() != null) {
+            long epochSeconds = user.getLastSyncedAt().atZone(ZoneId.systemDefault()).toEpochSecond();
+            query += " after:" + epochSeconds;
+        }
         
         ListMessagesResponse response = gmail.users().messages().list("me")
                 .setQ(query)
@@ -167,12 +174,29 @@ public class GmailService {
                 raw.setMessageId(fullMsg.getId());
                 raw.setSnippet(fullMsg.getSnippet());
                 
-                fullMsg.getPayload().getHeaders().forEach(h -> {
+                String dateHeader = null;
+                for (var h : fullMsg.getPayload().getHeaders()) {
                     if ("Subject".equalsIgnoreCase(h.getName())) raw.setSubject(h.getValue());
                     if ("From".equalsIgnoreCase(h.getName())) raw.setSender(h.getValue());
-                });
+                    if ("Date".equalsIgnoreCase(h.getName())) dateHeader = h.getValue();
+                }
                 
-                if (fullMsg.getInternalDate() != null) {
+                LocalDateTime emailDate = null;
+                if (dateHeader != null) {
+                    try {
+                        emailDate = ZonedDateTime.parse(dateHeader, DateTimeFormatter.RFC_1123_DATE_TIME).toLocalDateTime();
+                    } catch (DateTimeParseException e) {
+                        try {
+                            emailDate = ZonedDateTime.parse(dateHeader, DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("UTC"))).toLocalDateTime();
+                        } catch (Exception ex) {
+                            log.warn("Failed to parse Date header: {}", dateHeader);
+                        }
+                    }
+                }
+                
+                if (emailDate != null) {
+                    raw.setReceivedAt(emailDate);
+                } else if (fullMsg.getInternalDate() != null) {
                     raw.setReceivedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(fullMsg.getInternalDate()), ZoneId.systemDefault()));
                 } else {
                     raw.setReceivedAt(LocalDateTime.now());
@@ -182,5 +206,7 @@ public class GmailService {
                 log.info("Saved raw email: {}", raw.getSubject());
             }
         }
+        user.setLastSyncedAt(LocalDateTime.now());
+        userRepository.save(user);
     }
 }
