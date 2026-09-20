@@ -1,7 +1,18 @@
+version: 1
+
 tasks:
   compile:
-    command: "cd backend && mvn clean compile"
-    depends_on: []
+    command: "./mvnw compile"
+    working_dir: "backend"
+    trigger_paths: ["backend/src/main/**", "backend/pom.xml"]
+
   test:
-    command: "cd backend && mvn test"
+    command: "./mvnw test"
     depends_on: ["compile"]
+    working_dir: "backend"
+    trigger_paths: ["backend/src/**", "backend/pom.xml"]
+
+  frontend_build:
+    command: "npm run build"
+    working_dir: "frontend"
+    trigger_paths: ["frontend/src/**", "frontend/package.json", "frontend/vite.config.ts", "frontend/tsconfig*.json", "frontend/components.json"]
