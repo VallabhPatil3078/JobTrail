@@ -33,8 +33,9 @@ services:
       - SPRING_DATASOURCE_USERNAME=jobtrail_user
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-local_dev_password}
       - JWT_SECRET=${JWT_SECRET:-generate_a_secure_random_string_for_local_dev}
-      - GMAIL_CLIENT_ID=${GMAIL_CLIENT_ID}
-      - GMAIL_CLIENT_SECRET=${GMAIL_CLIENT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     depends_on:
       db:
         condition: service_healthy

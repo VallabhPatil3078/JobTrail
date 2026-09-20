@@ -4,11 +4,14 @@ import com.jobtrail.backend.model.User;
 import com.jobtrail.backend.repository.UserRepository;
 import com.jobtrail.backend.service.GmailService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
+import com.jobtrail.backend.security.JwtService;
 
 @RestController
 @RequestMapping("/api/gmail")
@@ -17,26 +20,43 @@ public class GmailController {
 
     private final GmailService gmailService;
     private final UserRepository userRepository;
+    private final JwtService jwtService;
 
-    @GetMapping("/connect")
-    public RedirectView connect() {
-        return new RedirectView(gmailService.getAuthorizationUrl());
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
+    @GetMapping("/auth-url")
+    public ResponseEntity<String> getAuthUrl() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        User user = userRepository.findByEmail(auth.getName()).orElseThrow();
+        String state = jwtService.generateStateToken(user.getId());
+        String url = gmailService.getAuthorizationUrl(state);
+        return ResponseEntity.ok("{\"url\":\"" + url + "\"}");
     }
 
     @GetMapping("/callback")
-    public ResponseEntity<String> callback(@RequestParam("code") String code) {
-        // In a real app with a frontend, we might receive state to verify user,
-        // or the frontend handles the redirect. Since it's a backend redirect, 
-        // we'll fetch the first user (for our single-tenant local app).
-        User user = userRepository.findAll().stream().findFirst().orElseThrow(() -> new RuntimeException("No user found in DB! Please register a user first."));
-        gmailService.exchangeCode(code, user.getId());
-        
-        return ResponseEntity.ok("Gmail successfully connected! You can now close this tab.");
+    public RedirectView callback(@RequestParam("code") String code, @RequestParam("state") String state) {
+        Long userId = jwtService.extractUserIdFromStateToken(state);
+        gmailService.exchangeCode(code, userId);
+        return new RedirectView(frontendUrl + "?gmail_connected=true");
     }
+
+    @GetMapping("/status")
+    public ResponseEntity<String> status() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        User user = userRepository.findByEmail(auth.getName()).orElseThrow();
+        return ResponseEntity.ok("{\"status\":\"" + user.getGmailConnectionStatus() + "\"}");
+    }
+
+
 
     @PostMapping("/sync")
     public ResponseEntity<Void> syncNow() {
-        gmailService.syncEmails();
-        return ResponseEntity.ok().build();
+        boolean started = gmailService.triggerManualSync();
+        if (started) {
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
     }
 }

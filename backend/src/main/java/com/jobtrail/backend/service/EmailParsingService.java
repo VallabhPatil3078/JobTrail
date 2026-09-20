@@ -25,7 +25,6 @@ public class EmailParsingService {
     private static final Pattern SUBJECT_PATTERN_1 = Pattern.compile("application for (?:the )?(.*) (?:position|role) at (.*)", Pattern.CASE_INSENSITIVE);
     private static final Pattern SUBJECT_PATTERN_2 = Pattern.compile("applying to (.*) at (.*)", Pattern.CASE_INSENSITIVE);
     private static final Pattern SUBJECT_PATTERN_3 = Pattern.compile("your application (?:to|with) (.*)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern ATS_SENDER_PATTERN = Pattern.compile("@(greenhouse\\.io|lever\\.co|myworkday\\.com|ashbyhq\\.com|workable\\.com)");
 
     @Transactional
     public void processUnprocessedEmails() {
@@ -56,8 +55,8 @@ public class EmailParsingService {
         double confidence = 0.0;
 
         // 1. Check ATS Sender
-        Matcher atsMatcher = ATS_SENDER_PATTERN.matcher(sender);
-        if (atsMatcher.find()) {
+        String domain = extractDomain(sender);
+        if (domain != null && isAtsDomain(domain)) {
             confidence += 40.0; // High signal that this is a job application email
         }
 
@@ -110,5 +109,27 @@ public class EmailParsingService {
         } else {
             log.info("Could not extract company from email {}. Marking as processed but no suggestion generated.", email.getId());
         }
+    }
+
+    private String extractDomain(String sender) {
+        if (sender == null) return null;
+        int atIndex = sender.lastIndexOf('@');
+        if (atIndex == -1 || atIndex == sender.length() - 1) return null;
+        
+        String domainPart = sender.substring(atIndex + 1);
+        int bracketIndex = domainPart.indexOf('>');
+        if (bracketIndex != -1) {
+            domainPart = domainPart.substring(0, bracketIndex);
+        }
+        return domainPart.trim().toLowerCase();
+    }
+
+    private boolean isAtsDomain(String domain) {
+        return domain.equals("greenhouse.io") || domain.endsWith(".greenhouse.io") ||
+               domain.equals("greenhouse-mail.io") || domain.endsWith(".greenhouse-mail.io") ||
+               domain.equals("lever.co") || domain.endsWith(".lever.co") ||
+               domain.equals("myworkday.com") || domain.endsWith(".myworkday.com") ||
+               domain.equals("ashbyhq.com") || domain.endsWith(".ashbyhq.com") ||
+               domain.equals("workable.com") || domain.endsWith(".workable.com");
     }
 }

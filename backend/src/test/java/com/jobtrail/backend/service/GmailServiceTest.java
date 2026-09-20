@@ -42,6 +42,9 @@ class GmailServiceTest {
     @Mock
     private RawEmailRepository rawEmailRepository;
 
+    @Mock
+    private EncryptionService encryptionService;
+
     @InjectMocks
     private GmailService gmailService;
 
@@ -49,6 +52,7 @@ class GmailServiceTest {
     void setUp() {
         ReflectionTestUtils.setField(gmailService, "clientId", "mock-client-id");
         ReflectionTestUtils.setField(gmailService, "clientSecret", "mock-client-secret");
+        ReflectionTestUtils.setField(gmailService, "redirectUri", "http://localhost:8080/api/gmail/callback");
     }
 
     @Test
@@ -58,9 +62,10 @@ class GmailServiceTest {
         
         when(flow.newAuthorizationUrl()).thenReturn(requestUrl);
         when(requestUrl.setRedirectUri(anyString())).thenReturn(requestUrl);
+        when(requestUrl.setState(anyString())).thenReturn(requestUrl);
         when(requestUrl.build()).thenReturn(mockAuthUrl);
 
-        String result = gmailService.getAuthorizationUrl();
+        String result = gmailService.getAuthorizationUrl("mock-state");
 
         assertEquals(mockAuthUrl, result);
         verify(flow, times(1)).newAuthorizationUrl();
@@ -85,12 +90,14 @@ class GmailServiceTest {
                 .thenReturn(mockTokenResponse);
 
         when(userRepository.findById(mockUserId)).thenReturn(Optional.of(mockUser));
+        when(encryptionService.encrypt(mockRefreshToken)).thenReturn("encrypted-token");
 
         gmailService.exchangeCode(mockCode, mockUserId);
 
         verify(userRepository, times(1)).findById(mockUserId);
         verify(userRepository, times(1)).save(mockUser);
-        assertEquals(mockRefreshToken, mockUser.getEncryptedRefreshToken());
+        assertEquals("encrypted-token", mockUser.getEncryptedRefreshToken());
+        assertEquals("CONNECTED", mockUser.getGmailConnectionStatus());
     }
 
     @Test

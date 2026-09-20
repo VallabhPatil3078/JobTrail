@@ -34,8 +34,33 @@ public class JwtService {
                 .compact();
     }
 
+    public String generateStateToken(Long userId) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + 300000); // 5 minutes
+        return Jwts.builder()
+                .setSubject(String.valueOf(userId))
+                .claim("purpose", "gmail-oauth")
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    public Long extractUserIdFromStateToken(String token) {
+        String purpose = extractClaim(token, claims -> claims.get("purpose", String.class));
+        if (!"gmail-oauth".equals(purpose)) {
+            throw new IllegalArgumentException("Invalid state token purpose");
+        }
+        return Long.parseLong(extractClaim(token, Claims::getSubject));
+    }
+
+    public boolean hasPurposeClaim(String token) {
+        String purpose = extractClaim(token, claims -> claims.get("purpose", String.class));
+        return purpose != null;
     }
 
     public boolean isTokenValid(String token, String email) {

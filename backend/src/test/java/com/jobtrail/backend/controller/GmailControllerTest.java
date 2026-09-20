@@ -11,7 +11,9 @@ import com.jobtrail.backend.security.JwtService;
 import com.jobtrail.backend.security.UserDetailsServiceImpl;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.test.context.support.WithMockUser;
 
+import java.util.Optional;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -51,49 +53,40 @@ class GmailControllerTest {
     private UserDetailsServiceImpl userDetailsService;
 
     @Test
-    void connect_ShouldRedirectToGoogleAuthUrl() throws Exception {
-        String mockUrl = "https://accounts.google.com/o/oauth2/auth?mock=true";
-        when(gmailService.getAuthorizationUrl()).thenReturn(mockUrl);
-
-        mockMvc.perform(get("/api/gmail/connect"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl(mockUrl));
-    }
-
-    @Test
-    void callback_ShouldExchangeCodeWhenUserExists() throws Exception {
-        String mockCode = "mock_auth_code_123";
+    @WithMockUser(username = "test@example.com")
+    void connect_ShouldReturnAuthUrl() throws Exception {
+        String mockAuthUrl = "https://mock-google-auth.com";
         User mockUser = new User();
         mockUser.setId(1L);
         mockUser.setEmail("test@example.com");
 
-        when(userRepository.findAll()).thenReturn(List.of(mockUser));
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(mockUser));
+        when(jwtService.generateStateToken(1L)).thenReturn("mock-state");
+        when(gmailService.getAuthorizationUrl("mock-state")).thenReturn(mockAuthUrl);
 
-        mockMvc.perform(get("/api/gmail/callback").param("code", mockCode))
+        mockMvc.perform(get("/api/gmail/auth-url"))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Gmail successfully connected! You can now close this tab."));
+                .andExpect(content().json("{\"url\":\"" + mockAuthUrl + "\"}"));
+    }
+
+    @Test
+    void callback_ShouldExchangeCodeAndRedirect() throws Exception {
+        String mockCode = "mock_auth_code_123";
+        String mockState = "mock_state_token";
+
+        when(jwtService.extractUserIdFromStateToken(mockState)).thenReturn(1L);
+
+        mockMvc.perform(get("/api/gmail/callback").param("code", mockCode).param("state", mockState))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:5173?gmail_connected=true"));
 
         verify(gmailService, times(1)).exchangeCode(mockCode, 1L);
     }
 
     @Test
-    void callback_ShouldThrowExceptionWhenNoUserExists() throws Exception {
-        String mockCode = "mock_auth_code_123";
-
-        when(userRepository.findAll()).thenReturn(List.of());
-
-        // Spring MVC will wrap runtime exceptions in a 500 error if there's no custom handler
-        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                mockMvc.perform(get("/api/gmail/callback").param("code", mockCode))
-        ).hasCauseInstanceOf(RuntimeException.class)
-         .hasMessageContaining("No user found in DB!");
-    }
-
-    @Test
-    void syncNow_ShouldCallGmailService() throws Exception {
+    void syncNow_ShouldTriggerSyncAndReturnOk() throws Exception {
+        when(gmailService.triggerManualSync()).thenReturn(true);
         mockMvc.perform(post("/api/gmail/sync"))
                 .andExpect(status().isOk());
-
-        verify(gmailService, times(1)).syncEmails();
     }
 }

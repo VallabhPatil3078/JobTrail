@@ -12,6 +12,7 @@ import com.jobtrail.backend.model.RawEmail;
 import com.jobtrail.backend.model.User;
 import com.jobtrail.backend.repository.RawEmailRepository;
 import com.jobtrail.backend.repository.UserRepository;
+import com.jobtrail.backend.exception.DecryptionException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
@@ -35,6 +40,7 @@ public class GmailService {
     private final UserRepository userRepository;
     private final RawEmailRepository rawEmailRepository;
     private final EmailParsingService emailParsingService;
+    private final EncryptionService encryptionService;
 
     @Value("${google.client-id}")
     private String clientId;
@@ -42,12 +48,16 @@ public class GmailService {
     @Value("${google.client-secret}")
     private String clientSecret;
 
-    private static final String REDIRECT_URI = "http://localhost:8080/api/gmail/callback";
-    private static final String APPLICATION_NAME = "JobTrail";
+    @Value("${app.redirect-uri:http://localhost:8080/api/gmail/callback}")
+    private String redirectUri;
 
-    public String getAuthorizationUrl() {
+    private static final String APPLICATION_NAME = "JobTrail";
+    private final AtomicBoolean isSyncing = new AtomicBoolean(false);
+
+    public String getAuthorizationUrl(String state) {
         return flow.newAuthorizationUrl()
-                .setRedirectUri(REDIRECT_URI)
+                .setRedirectUri(redirectUri)
+                .setState(state)
                 .build();
     }
 
@@ -55,17 +65,17 @@ public class GmailService {
     public void exchangeCode(String code, Long userId) {
         try {
             TokenResponse response = flow.newTokenRequest(code)
-                    .setRedirectUri(REDIRECT_URI)
+                    .setRedirectUri(redirectUri)
                     .execute();
             
             String refreshToken = response.getRefreshToken();
             
             User user = userRepository.findById(userId).orElseThrow();
-            // In a production app, encrypt this token. For local MVP, storing directly.
             if (refreshToken != null) {
-                user.setEncryptedRefreshToken(refreshToken);
+                user.setEncryptedRefreshToken(encryptionService.encrypt(refreshToken));
+                user.setGmailConnectionStatus("CONNECTED");
                 userRepository.save(user);
-                log.info("Saved refresh token for user {}", user.getEmail());
+                log.info("Saved encrypted refresh token for user {}", user.getEmail());
             }
         } catch (Exception e) {
             log.error("Failed to exchange auth code", e);
@@ -74,37 +84,73 @@ public class GmailService {
     }
 
     @Scheduled(fixedDelay = 900000) // 15 minutes
-    public void syncEmails() {
-        log.info("Starting scheduled Gmail sync...");
+    public void scheduledSync() {
+        if (isSyncing.compareAndSet(false, true)) {
+            try {
+                executeSync();
+            } finally {
+                isSyncing.set(false);
+            }
+        } else {
+            log.info("Scheduled sync skipped - sync already in progress.");
+        }
+    }
+    
+    public boolean triggerManualSync() {
+        if (isSyncing.compareAndSet(false, true)) {
+            try {
+                executeSync();
+                return true;
+            } finally {
+                isSyncing.set(false);
+            }
+        }
+        return false;
+    }
+
+    private void executeSync() {
+        log.info("Starting Gmail sync...");
         List<User> users = userRepository.findAll();
         for (User user : users) {
             if (user.getEncryptedRefreshToken() != null && !user.getEncryptedRefreshToken().isEmpty()) {
+                if ("NEEDS_RECONNECT".equals(user.getGmailConnectionStatus())) {
+                    log.info("Skipping user {} because they need to reconnect.", user.getEmail());
+                    continue;
+                }
                 try {
                     syncEmailsForUser(user);
+                } catch (DecryptionException de) {
+                    log.warn("Decryption failed for user {}. Marking as NEEDS_RECONNECT", user.getEmail());
+                    user.setGmailConnectionStatus("NEEDS_RECONNECT");
+                    userRepository.save(user);
                 } catch (Exception e) {
                     log.error("Failed to sync emails for user {}", user.getEmail(), e);
                 }
             }
         }
         
-        // After fetching new emails, run the parser
         log.info("Finished fetching emails. Triggering email parser...");
         emailParsingService.processUnprocessedEmails();
     }
 
     private void syncEmailsForUser(User user) throws Exception {
+        String decryptedToken = encryptionService.decrypt(user.getEncryptedRefreshToken());
         GoogleCredential credential = new GoogleCredential.Builder()
                 .setTransport(httpTransport)
                 .setJsonFactory(googleJsonFactory)
                 .setClientSecrets(clientId, clientSecret)
                 .build()
-                .setRefreshToken(user.getEncryptedRefreshToken());
+                .setRefreshToken(decryptedToken);
 
         Gmail gmail = new Gmail.Builder(httpTransport, googleJsonFactory, credential)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
 
         String query = "subject:(application OR interview OR offer OR \"thank you for applying\")";
+        if (user.getLastSyncedAt() != null) {
+            long epochSeconds = user.getLastSyncedAt().atZone(ZoneId.systemDefault()).toEpochSecond();
+            query += " after:" + epochSeconds;
+        }
         
         ListMessagesResponse response = gmail.users().messages().list("me")
                 .setQ(query)
@@ -128,12 +174,29 @@ public class GmailService {
                 raw.setMessageId(fullMsg.getId());
                 raw.setSnippet(fullMsg.getSnippet());
                 
-                fullMsg.getPayload().getHeaders().forEach(h -> {
+                String dateHeader = null;
+                for (var h : fullMsg.getPayload().getHeaders()) {
                     if ("Subject".equalsIgnoreCase(h.getName())) raw.setSubject(h.getValue());
                     if ("From".equalsIgnoreCase(h.getName())) raw.setSender(h.getValue());
-                });
+                    if ("Date".equalsIgnoreCase(h.getName())) dateHeader = h.getValue();
+                }
                 
-                if (fullMsg.getInternalDate() != null) {
+                LocalDateTime emailDate = null;
+                if (dateHeader != null) {
+                    try {
+                        emailDate = ZonedDateTime.parse(dateHeader, DateTimeFormatter.RFC_1123_DATE_TIME).toLocalDateTime();
+                    } catch (DateTimeParseException e) {
+                        try {
+                            emailDate = ZonedDateTime.parse(dateHeader, DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("UTC"))).toLocalDateTime();
+                        } catch (Exception ex) {
+                            log.warn("Failed to parse Date header: {}", dateHeader);
+                        }
+                    }
+                }
+                
+                if (emailDate != null) {
+                    raw.setReceivedAt(emailDate);
+                } else if (fullMsg.getInternalDate() != null) {
                     raw.setReceivedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(fullMsg.getInternalDate()), ZoneId.systemDefault()));
                 } else {
                     raw.setReceivedAt(LocalDateTime.now());
@@ -143,5 +206,7 @@ public class GmailService {
                 log.info("Saved raw email: {}", raw.getSubject());
             }
         }
+        user.setLastSyncedAt(LocalDateTime.now());
+        userRepository.save(user);
     }
 }
