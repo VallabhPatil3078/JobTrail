@@ -8,12 +8,28 @@ import { Mail, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface GmailStatus {
-  connected: boolean;
-  email: string | null;
+  status: 'CONNECTED' | 'DISCONNECTED';
+  lastSyncedAt: string;
 }
+
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('gmail_connected') === 'true') {
+      toast.success('Gmail connected successfully!');
+      navigate('/settings', { replace: true });
+    } else if (params.get('gmail_error')) {
+      toast.error('Failed to connect Gmail');
+      navigate('/settings', { replace: true });
+    }
+  }, [location, navigate]);
   
   const { data: status, isLoading, isError, refetch } = useQuery({
     queryKey: ['gmail-status'],
@@ -36,9 +52,13 @@ export default function SettingsPage() {
     }
   });
 
-  const handleConnect = () => {
-    // The backend provides a redirect endpoint for OAuth
-    window.location.href = 'http://localhost:8080/api/gmail/connect';
+  const handleConnect = async () => {
+    try {
+      const res = await api.get<{url: string}>('/gmail/auth-url');
+      window.location.href = res.data.url;
+    } catch (err) {
+      toast.error('Failed to get authorization URL');
+    }
   };
 
   if (isLoading) return <LoadingState message="Loading settings..." />;
@@ -66,12 +86,17 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="p-4 bg-muted/50 rounded-lg border border-border">
-            {status?.connected ? (
+            {status?.status === 'CONNECTED' ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
                   <CheckCircle2 className="w-5 h-5" />
-                  Connected as {status.email}
+                  Connected
                 </div>
+                {status.lastSyncedAt && (
+                  <p className="text-sm text-muted-foreground">
+                    Last synced: {new Date(status.lastSyncedAt).toLocaleString()}
+                  </p>
+                )}
                 <Button 
                   onClick={() => syncMutation.mutate()} 
                   disabled={syncMutation.isPending}
