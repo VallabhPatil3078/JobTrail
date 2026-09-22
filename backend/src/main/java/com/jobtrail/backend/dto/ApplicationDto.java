@@ -16,7 +16,8 @@ public class ApplicationDto {
         LocalDate dateApplied,
         @NotNull(message = "Source is required") Application.DataSourceEnum source,
         Double confidence,
-        Long sourceRawEmailId
+        Long sourceRawEmailId,
+        Boolean createReminder
     ) {}
 
     public record ApplicationResponse(
@@ -30,6 +31,7 @@ public class ApplicationDto {
         Double confidence,
         LocalDate dateApplied,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Boolean hasActiveReminder
     ) {}
 }

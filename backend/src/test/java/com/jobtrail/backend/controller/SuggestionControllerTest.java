@@ -79,7 +79,7 @@ class SuggestionControllerTest {
     @Test
     void getPendingSuggestions_ShouldReturnList() throws Exception {
         SuggestedApplicationDto.SuggestedApplicationResponse response = new SuggestedApplicationDto.SuggestedApplicationResponse(
-                100L, 1L, "Google", "Backend Engineer", LocalDate.now(), 95.0, SuggestedApplication.SuggestionStatusEnum.PENDING, LocalDateTime.now()
+                100L, new SuggestedApplicationDto.RawEmailSummary(1L, "Subject", "Sender", "Snippet", LocalDateTime.now()), "Google", "Backend Engineer", LocalDate.now(), 95.0, SuggestedApplication.SuggestionStatusEnum.PENDING, LocalDateTime.now()
         );
         when(suggestionService.getPendingSuggestions())
                 .thenReturn(List.of(response));
@@ -95,8 +95,13 @@ class SuggestionControllerTest {
     void confirmSuggestion_ShouldCreateApplicationAndMarkConfirmed() throws Exception {
         ApplicationDto.ApplicationResponse mockResponse = new ApplicationDto.ApplicationResponse(
                 1L, "Google Inc.", "Senior Backend Engineer", null, null,
-                Application.StatusEnum.APPLIED, Application.DataSourceEnum.EMAIL_DETECTED,
-                95.0, LocalDate.now(), LocalDateTime.now(), LocalDateTime.now()
+                Application.StatusEnum.APPLIED,
+                Application.DataSourceEnum.EMAIL_DETECTED,
+                85.0,
+                LocalDate.now(),
+                LocalDateTime.now(),
+                LocalDateTime.now(),
+                false
         );
 
         when(suggestionService.confirmSuggestion(eq(100L), any(SuggestedApplicationDto.SuggestionConfirmRequest.class)))

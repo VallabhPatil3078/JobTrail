@@ -6,6 +6,7 @@ import com.jobtrail.backend.mapper.ApplicationMapper;
 import com.jobtrail.backend.model.Application;
 import com.jobtrail.backend.model.Application.StatusEnum;
 import com.jobtrail.backend.repository.ApplicationRepository;
+import com.jobtrail.backend.repository.RawEmailRepository;
 import com.jobtrail.backend.repository.StatusHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,10 +15,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +33,12 @@ class ApplicationServiceTest {
 
     @Mock
     private StatusHistoryRepository statusHistoryRepository;
+
+    @Mock
+    private RawEmailRepository rawEmailRepository;
+
+    @Mock
+    private ReminderService reminderService;
 
     @Mock
     private ApplicationMapper applicationMapper;
@@ -51,7 +62,7 @@ class ApplicationServiceTest {
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(mockApplication));
         when(applicationRepository.save(any(Application.class))).thenReturn(mockApplication);
 
-        StatusUpdateRequest request = new StatusUpdateRequest(StatusEnum.INTERVIEW, "Scheduled for next week");
+        StatusUpdateRequest request = new StatusUpdateRequest(Application.StatusEnum.INTERVIEW, "Interview scheduled", false);
 
         assertDoesNotThrow(() -> applicationService.updateApplicationStatus(1L, request));
 
@@ -65,7 +76,7 @@ class ApplicationServiceTest {
         mockApplication.setStatus(StatusEnum.REJECTED);
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(mockApplication));
 
-        StatusUpdateRequest request = new StatusUpdateRequest(StatusEnum.OFFER, "They changed their mind");
+        StatusUpdateRequest request = new StatusUpdateRequest(Application.StatusEnum.OFFER, "Got offer!", false);
 
         IllegalStatusTransitionException exception = assertThrows(
                 IllegalStatusTransitionException.class,
@@ -80,7 +91,7 @@ class ApplicationServiceTest {
     void testNoOpTransition_AppliedToApplied() {
         when(applicationRepository.findById(1L)).thenReturn(Optional.of(mockApplication));
 
-        StatusUpdateRequest request = new StatusUpdateRequest(StatusEnum.APPLIED, "Nothing changed");
+        StatusUpdateRequest request = new StatusUpdateRequest(Application.StatusEnum.APPLIED, "Reverted", false);
 
         assertDoesNotThrow(() -> applicationService.updateApplicationStatus(1L, request));
 

@@ -68,7 +68,8 @@ public class SuggestionService {
                 dateApplied,
                 Application.DataSourceEnum.EMAIL_DETECTED,
                 suggestion.getConfidenceScore(),
-                suggestion.getRawEmail() != null ? suggestion.getRawEmail().getId() : null
+                suggestion.getRawEmail() != null ? suggestion.getRawEmail().getId() : null,
+                request.createReminder()
         );
 
         ApplicationDto.ApplicationResponse application = applicationService.createApplication(appRequest);
@@ -96,7 +97,13 @@ public class SuggestionService {
     private SuggestedApplicationResponse mapToResponse(SuggestedApplication entity) {
         return new SuggestedApplicationResponse(
                 entity.getId(),
-                entity.getRawEmail() != null ? entity.getRawEmail().getId() : null,
+                entity.getRawEmail() != null ? new com.jobtrail.backend.dto.SuggestedApplicationDto.RawEmailSummary(
+                        entity.getRawEmail().getId(),
+                        entity.getRawEmail().getSubject(),
+                        entity.getRawEmail().getSender(),
+                        entity.getRawEmail().getSnippet(),
+                        entity.getRawEmail().getReceivedAt()
+                ) : null,
                 entity.getExtractedCompany(),
                 entity.getExtractedRole(),
                 entity.getExtractedDate(),

@@ -1,14 +1,23 @@
 package com.jobtrail.backend.dto;
 
 import com.jobtrail.backend.model.SuggestedApplication.SuggestionStatusEnum;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class SuggestedApplicationDto {
     
+    public record RawEmailSummary(
+            Long id,
+            String subject,
+            String sender,
+            String snippet,
+            LocalDateTime receivedAt
+    ) {}
+    
     public record SuggestedApplicationResponse(
             Long id,
-            Long rawEmailId,
+            RawEmailSummary rawEmail,
             String extractedCompany,
             String extractedRole,
             LocalDate extractedDate,
@@ -18,8 +27,9 @@ public class SuggestedApplicationDto {
     ) {}
     
     public record SuggestionConfirmRequest(
-            String company,
+            @NotBlank(message = "Company is required") String company,
             String role,
-            LocalDate dateApplied
+            LocalDate dateApplied,
+            Boolean createReminder
     ) {}
 }
