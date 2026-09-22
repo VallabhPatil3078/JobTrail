@@ -45,6 +45,9 @@ class GmailServiceTest {
     @Mock
     private EncryptionService encryptionService;
 
+    @Mock
+    private EmailParsingService emailParsingService;
+
     @InjectMocks
     private GmailService gmailService;
 
@@ -97,7 +100,7 @@ class GmailServiceTest {
         verify(userRepository, times(1)).findById(mockUserId);
         verify(userRepository, times(1)).save(mockUser);
         assertEquals("encrypted-token", mockUser.getEncryptedRefreshToken());
-        assertEquals("CONNECTED", mockUser.getGmailConnectionStatus());
+        assertEquals(User.GmailConnectionStatus.CONNECTED, mockUser.getGmailConnectionStatus());
     }
 
     @Test
@@ -114,5 +117,22 @@ class GmailServiceTest {
 
         assertTrue(exception.getMessage().contains("Failed to exchange auth code"));
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void executeSync_ShouldMarkUserNeedsReconnectOnDecryptionFailure() throws Exception {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("test@example.com");
+        mockUser.setEncryptedRefreshToken("encrypted");
+        mockUser.setGmailConnectionStatus(User.GmailConnectionStatus.CONNECTED);
+
+        when(userRepository.findAll()).thenReturn(java.util.List.of(mockUser));
+        when(encryptionService.decrypt("encrypted")).thenThrow(new com.jobtrail.backend.exception.DecryptionException("Invalid token", new RuntimeException("Simulated exception")));
+
+        ReflectionTestUtils.invokeMethod(gmailService, "executeSync");
+
+        assertEquals(User.GmailConnectionStatus.NEEDS_RECONNECT, mockUser.getGmailConnectionStatus());
+        verify(userRepository, times(1)).save(mockUser);
     }
 }

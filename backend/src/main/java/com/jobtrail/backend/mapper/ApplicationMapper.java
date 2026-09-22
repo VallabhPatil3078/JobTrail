@@ -3,10 +3,15 @@ package com.jobtrail.backend.mapper;
 import com.jobtrail.backend.dto.ApplicationDto.ApplicationRequest;
 import com.jobtrail.backend.dto.ApplicationDto.ApplicationResponse;
 import com.jobtrail.backend.model.Application;
+import com.jobtrail.backend.repository.ReminderRepository;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
 public class ApplicationMapper {
+
+    @Autowired
+    private ReminderRepository reminderRepository;
 
     public Application toEntity(ApplicationRequest request) {
         if (request == null) {
@@ -43,7 +48,8 @@ public class ApplicationMapper {
                 entity.getConfidence(),
                 entity.getDateApplied(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getId() != null ? reminderRepository.countByApplicationIdAndCompletedAtIsNull(entity.getId()) > 0 : false
         );
     }
 }

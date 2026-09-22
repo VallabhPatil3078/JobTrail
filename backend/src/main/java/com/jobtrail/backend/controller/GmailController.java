@@ -25,13 +25,16 @@ public class GmailController {
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
+    public record AuthUrlResponse(String url) {}
+    public record StatusResponse(User.GmailConnectionStatus status, String lastSyncedAt) {}
+
     @GetMapping("/auth-url")
-    public ResponseEntity<String> getAuthUrl() {
+    public ResponseEntity<AuthUrlResponse> getAuthUrl() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         User user = userRepository.findByEmail(auth.getName()).orElseThrow();
         String state = jwtService.generateStateToken(user.getId());
         String url = gmailService.getAuthorizationUrl(state);
-        return ResponseEntity.ok("{\"url\":\"" + url + "\"}");
+        return ResponseEntity.ok(new AuthUrlResponse(url));
     }
 
     @GetMapping("/callback")
@@ -54,11 +57,11 @@ public class GmailController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<String> status() {
+    public ResponseEntity<StatusResponse> status() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         User user = userRepository.findByEmail(auth.getName()).orElseThrow();
         String lastSyncedAt = user.getLastSyncedAt() != null ? user.getLastSyncedAt().toString() : "";
-        return ResponseEntity.ok("{\"status\":\"" + user.getGmailConnectionStatus() + "\",\"lastSyncedAt\":\"" + lastSyncedAt + "\"}");
+        return ResponseEntity.ok(new StatusResponse(user.getGmailConnectionStatus(), lastSyncedAt));
     }
 
 

@@ -8,7 +8,8 @@ public class StatusHistoryDto {
 
     public record StatusUpdateRequest(
         @NotNull(message = "New status is required") Application.StatusEnum status,
-        String note
+        String note,
+        Boolean createReminder
     ) {}
 
     public record StatusHistoryResponse(

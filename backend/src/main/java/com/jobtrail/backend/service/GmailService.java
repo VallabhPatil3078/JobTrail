@@ -51,6 +51,9 @@ public class GmailService {
     @Value("${app.redirect-uri:http://localhost:8080/api/gmail/callback}")
     private String redirectUri;
 
+    @Value("${app.timezone:UTC}")
+    private String appTimezone;
+
     private static final String APPLICATION_NAME = "JobTrail";
     private final AtomicBoolean isSyncing = new AtomicBoolean(false);
 
@@ -73,9 +76,11 @@ public class GmailService {
             User user = userRepository.findById(userId).orElseThrow();
             if (refreshToken != null) {
                 user.setEncryptedRefreshToken(encryptionService.encrypt(refreshToken));
-                user.setGmailConnectionStatus("CONNECTED");
+                user.setGmailConnectionStatus(User.GmailConnectionStatus.CONNECTED);
                 userRepository.save(user);
                 log.info("Saved encrypted refresh token for user {}", user.getEmail());
+            } else {
+                throw new RuntimeException("No refresh token returned by Google");
             }
         } catch (Exception e) {
             log.error("Failed to exchange auth code", e);
@@ -113,7 +118,7 @@ public class GmailService {
         List<User> users = userRepository.findAll();
         for (User user : users) {
             if (user.getEncryptedRefreshToken() != null && !user.getEncryptedRefreshToken().isEmpty()) {
-                if ("NEEDS_RECONNECT".equals(user.getGmailConnectionStatus())) {
+                if (User.GmailConnectionStatus.NEEDS_RECONNECT.equals(user.getGmailConnectionStatus())) {
                     log.info("Skipping user {} because they need to reconnect.", user.getEmail());
                     continue;
                 }
@@ -121,7 +126,7 @@ public class GmailService {
                     syncEmailsForUser(user);
                 } catch (DecryptionException de) {
                     log.warn("Decryption failed for user {}. Marking as NEEDS_RECONNECT", user.getEmail());
-                    user.setGmailConnectionStatus("NEEDS_RECONNECT");
+                    user.setGmailConnectionStatus(User.GmailConnectionStatus.NEEDS_RECONNECT);
                     userRepository.save(user);
                 } catch (Exception e) {
                     log.error("Failed to sync emails for user {}", user.getEmail(), e);
@@ -148,7 +153,7 @@ public class GmailService {
 
         String query = "subject:(application OR interview OR offer OR \"thank you for applying\")";
         if (user.getLastSyncedAt() != null) {
-            long epochSeconds = user.getLastSyncedAt().atZone(ZoneId.systemDefault()).toEpochSecond();
+            long epochSeconds = user.getLastSyncedAt().atZone(ZoneId.of(appTimezone)).toEpochSecond();
             query += " after:" + epochSeconds;
         }
         
@@ -164,46 +169,46 @@ public class GmailService {
         }
 
         for (Message msg : messages) {
-            if (rawEmailRepository.findByMessageId(msg.getId()).isEmpty()) {
-                Message fullMsg = gmail.users().messages().get("me", msg.getId())
-                        .setFormat("metadata")
-                        .setMetadataHeaders(List.of("Subject", "From", "Date"))
-                        .execute();
-                        
-                RawEmail raw = new RawEmail();
-                raw.setMessageId(fullMsg.getId());
-                raw.setSnippet(fullMsg.getSnippet());
-                
-                String dateHeader = null;
-                for (var h : fullMsg.getPayload().getHeaders()) {
-                    if ("Subject".equalsIgnoreCase(h.getName())) raw.setSubject(h.getValue());
-                    if ("From".equalsIgnoreCase(h.getName())) raw.setSender(h.getValue());
-                    if ("Date".equalsIgnoreCase(h.getName())) dateHeader = h.getValue();
-                }
-                
-                LocalDateTime emailDate = null;
-                if (dateHeader != null) {
-                    try {
-                        emailDate = ZonedDateTime.parse(dateHeader, DateTimeFormatter.RFC_1123_DATE_TIME).toLocalDateTime();
-                    } catch (DateTimeParseException e) {
+            try {
+                if (rawEmailRepository.findByMessageId(msg.getId()).isEmpty()) {
+                    Message fullMsg = gmail.users().messages().get("me", msg.getId())
+                            .setFormat("metadata")
+                            .setMetadataHeaders(List.of("Subject", "From", "Date"))
+                            .execute();
+                            
+                    RawEmail raw = new RawEmail();
+                    raw.setMessageId(fullMsg.getId());
+                    raw.setSnippet(fullMsg.getSnippet());
+                    
+                    String dateHeader = null;
+                    for (var h : fullMsg.getPayload().getHeaders()) {
+                        if ("Subject".equalsIgnoreCase(h.getName())) raw.setSubject(h.getValue());
+                        if ("From".equalsIgnoreCase(h.getName())) raw.setSender(h.getValue());
+                        if ("Date".equalsIgnoreCase(h.getName())) dateHeader = h.getValue();
+                    }
+                    
+                    LocalDateTime emailDate = null;
+                    if (dateHeader != null) {
                         try {
-                            emailDate = ZonedDateTime.parse(dateHeader, DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("UTC"))).toLocalDateTime();
-                        } catch (Exception ex) {
+                            emailDate = ZonedDateTime.parse(dateHeader, DateTimeFormatter.RFC_1123_DATE_TIME).toLocalDateTime();
+                        } catch (DateTimeParseException e) {
                             log.warn("Failed to parse Date header: {}", dateHeader);
                         }
                     }
+                    
+                    if (emailDate != null) {
+                        raw.setReceivedAt(emailDate);
+                    } else if (fullMsg.getInternalDate() != null) {
+                        raw.setReceivedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(fullMsg.getInternalDate()), ZoneId.systemDefault()));
+                    } else {
+                        raw.setReceivedAt(LocalDateTime.now());
+                    }
+                    
+                    rawEmailRepository.save(raw);
+                    log.info("Saved raw email: {}", raw.getSubject());
                 }
-                
-                if (emailDate != null) {
-                    raw.setReceivedAt(emailDate);
-                } else if (fullMsg.getInternalDate() != null) {
-                    raw.setReceivedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(fullMsg.getInternalDate()), ZoneId.systemDefault()));
-                } else {
-                    raw.setReceivedAt(LocalDateTime.now());
-                }
-                
-                rawEmailRepository.save(raw);
-                log.info("Saved raw email: {}", raw.getSubject());
+            } catch (Exception e) {
+                log.error("Failed to process message ID: {}", msg.getId(), e);
             }
         }
         user.setLastSyncedAt(LocalDateTime.now());
