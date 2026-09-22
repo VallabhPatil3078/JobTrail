@@ -22,7 +22,7 @@ export const useSuggestions = () => {
   return useQuery({
     queryKey: ['suggestions'],
     queryFn: async (): Promise<SuggestedApplication[]> => {
-      const res = await api.get('/suggestions/pending');
+      const res = await api.get('/suggestions');
       return res.data;
     },
   });
@@ -31,14 +31,15 @@ export const useSuggestions = () => {
 export const useConfirmSuggestion = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, company, role }: { id: number; company: string; role?: string }) => {
-      const res = await api.post(`/suggestions/${id}/confirm`, { company, role });
+    mutationFn: async ({ id, company, role, createReminder }: { id: number; company: string; role?: string; createReminder?: boolean }) => {
+      const res = await api.post(`/suggestions/${id}/confirm`, { company, role, createReminder });
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suggestions'] });
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['reminders'] });
     },
   });
 };

@@ -9,7 +9,7 @@ import type { SuggestedApplication } from '@/hooks/useSuggestions';
 interface SuggestionCardProps {
   suggestion: SuggestedApplication;
   isSelected: boolean;
-  onConfirm: (id: number, company: string, role?: string) => void;
+  onConfirm: (id: number, company: string, role?: string, createReminder?: boolean) => void;
   onReject: (id: number) => void;
   isConfirming: boolean;
   isRejecting: boolean;
@@ -28,6 +28,7 @@ export function SuggestionCard({
   const [isEditing, setIsEditing] = useState(false);
   const [company, setCompany] = useState(suggestion.extractedCompany);
   const [role, setRole] = useState(suggestion.extractedRole || '');
+  const [createReminder, setCreateReminder] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,11 +67,12 @@ export function SuggestionCard({
   }, [isSelected, company, role]);
 
   const handleConfirm = () => {
-    onConfirm(suggestion.id, company, role);
+    onConfirm(suggestion.id, company, role, createReminder);
     setIsEditing(false);
   };
 
-  const confidenceColor = suggestion.confidenceScore >= 80 ? 'text-green-500' : 'text-amber-500';
+  const confidenceLevel = suggestion.confidenceScore >= 80 ? 'High' : suggestion.confidenceScore >= 50 ? 'Medium' : 'Low';
+  const confidenceColor = suggestion.confidenceScore >= 80 ? 'text-green-500' : suggestion.confidenceScore >= 50 ? 'text-amber-500' : 'text-red-500';
 
   return (
     <Card 
@@ -83,9 +85,20 @@ export function SuggestionCard({
       <div className="flex flex-col md:flex-row h-full">
         {/* Email Context Section */}
         <div className="flex-1 p-6 border-b md:border-b-0 md:border-r border-border bg-muted/20">
-          <div className="flex items-center gap-2 mb-4 text-muted-foreground">
-            <Mail className="w-4 h-4" />
-            <span className="text-sm font-medium">Source Email</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Mail className="w-4 h-4" />
+              <span className="text-sm font-medium">Source Email</span>
+            </div>
+            <a 
+              href={`https://mail.google.com/mail/u/0/#search/${encodeURIComponent(suggestion.rawEmail.subject)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+              onClick={e => e.stopPropagation()}
+            >
+              Open in Gmail
+            </a>
           </div>
           <div className="space-y-2">
             <div>
@@ -110,8 +123,8 @@ export function SuggestionCard({
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium">Extracted Data</span>
-              <span className={`text-xs font-bold ${confidenceColor}`}>
-                {suggestion.confidenceScore}% Confidence
+              <span className={`text-xs font-bold px-2 py-1 rounded-full bg-muted ${confidenceColor}`}>
+                {confidenceLevel} Confidence
               </span>
             </div>
             
@@ -165,8 +178,22 @@ export function SuggestionCard({
               </div>
             )}
           </div>
+          
+          <div className="flex items-center gap-2 mt-4 pb-2">
+            <input 
+              type="checkbox" 
+              id={`reminder-${suggestion.id}`} 
+              checked={createReminder} 
+              onChange={(e) => setCreateReminder(e.target.checked)} 
+              className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+              onClick={e => e.stopPropagation()}
+            />
+            <Label htmlFor={`reminder-${suggestion.id}`} className="text-sm cursor-pointer" onClick={e => e.stopPropagation()}>
+              Create follow-up reminder
+            </Label>
+          </div>
 
-          <div className="flex items-center justify-end gap-2 mt-6">
+          <div className="flex items-center justify-end gap-2 mt-2">
             {isEditing ? (
               <>
                 <Button variant="ghost" size="sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setIsEditing(false); }}>

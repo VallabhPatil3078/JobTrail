@@ -47,13 +47,14 @@ export const useApplicationHistory = (id: number, enabled: boolean) => {
 export const useCreateApplication = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { company: string; role: string; dateApplied: string; source: string }) => {
+    mutationFn: async (data: { company: string; role: string; dateApplied: string; source: string; createReminder?: boolean }) => {
       const res = await api.post('/applications', data);
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['reminders'] });
     },
   });
 };
@@ -61,14 +62,17 @@ export const useCreateApplication = () => {
 export const useUpdateApplicationStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status, note }: { id: number; status: ApplicationStatus; note?: string }) => {
-      const res = await api.patch(`/applications/${id}/status`, { status, note });
+    mutationFn: async ({ id, status, note, createReminder }: { id: number; status: ApplicationStatus; note?: string; createReminder?: boolean }) => {
+      const res = await api.patch(`/applications/${id}/status`, { status, note, createReminder });
       return res.data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       queryClient.invalidateQueries({ queryKey: ['applications', variables.id, 'history'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      if (variables.createReminder) {
+        queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      }
     },
   });
 };
