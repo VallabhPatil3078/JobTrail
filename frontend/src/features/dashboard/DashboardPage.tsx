@@ -12,13 +12,11 @@ export default function DashboardPage() {
   if (!stats) return null;
 
   const funnelData = [
-    { name: 'Applied', value: stats.appliedCount, color: 'var(--status-applied)' },
-    { name: 'OA', value: stats.oaCount, color: 'var(--status-oa)' },
-    { name: 'Interview', value: stats.interviewCount, color: 'var(--status-interview)' },
-    { name: 'Offer', value: stats.offerCount, color: 'var(--status-offer)' },
+    { name: 'Total', value: stats.total, color: 'var(--status-applied)' },
+    { name: 'OA', value: stats.stages.OA, color: 'var(--status-oa)' },
+    { name: 'Interview', value: stats.stages.INTERVIEW, color: 'var(--status-interview)' },
+    { name: 'Offer', value: stats.stages.OFFER, color: 'var(--status-offer)' },
   ];
-
-  const totalProcessed = funnelData.reduce((acc, curr) => acc + curr.value, 0) + stats.rejectedCount + stats.withdrawnCount;
 
   return (
     <div className="space-y-6">
@@ -29,29 +27,37 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalProcessed}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Interviews</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Applications</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.interviewCount}</div>
+            <div className="text-2xl font-bold">{stats.active}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Offers</CardTitle>
+            <CardTitle className="text-sm font-medium">Response Rate</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.offerCount}</div>
+            <div className="text-2xl font-bold">{stats.responseRate}%</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Email Detected</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.emailDetectedPct}%</div>
           </CardContent>
         </Card>
       </div>
