@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 const API_BASE = 'http://localhost:8080/api';
 
 export const handlers = [
-  http.get(`${API_BASE}/suggestions/pending`, () => {
+  http.get(`${API_BASE}/suggestions`, () => {
     return HttpResponse.json([
       {
         id: 1,

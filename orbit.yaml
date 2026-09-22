@@ -2,12 +2,12 @@ version: 1
 
 tasks:
   compile:
-    command: "./mvnw compile"
+    command: "mvn compile"
     working_dir: "backend"
     trigger_paths: ["backend/src/main/**", "backend/pom.xml"]
 
   test:
-    command: "./mvnw test"
+    command: "mvn test"
     depends_on: ["compile"]
     working_dir: "backend"
     trigger_paths: ["backend/src/**", "backend/pom.xml"]
