@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   db:
@@ -18,40 +18,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  backend:
-    build: 
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: jobtrail-backend
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/jobtrail_db
-      - SPRING_DATASOURCE_USERNAME=jobtrail_user
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-local_dev_password}
-      - JWT_SECRET=${JWT_SECRET:-generate_a_secure_random_string_for_local_dev}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-    depends_on:
-      db:
-        condition: service_healthy
-
-  frontend:
-    build: 
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: jobtrail-frontend
-    restart: unless-stopped
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8080/api
-    depends_on:
-      - backend
 
 volumes:
   jobtrail-pgdata:
