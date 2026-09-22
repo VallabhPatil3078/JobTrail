@@ -13,13 +13,14 @@ export function ApplicationForm({ onSuccess }: ApplicationFormProps) {
   const [company, setCompany] = useState('');
   const [role, setRole] = useState('');
   const [dateApplied, setDateApplied] = useState(() => new Date().toISOString().split('T')[0]);
+  const [createReminder, setCreateReminder] = useState(false);
   
   const createMutation = useCreateApplication();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate(
-      { company, role, dateApplied, source: 'MANUAL' },
+      { company, role, dateApplied, source: 'MANUAL', createReminder },
       {
         onSuccess: () => {
           toast.success('Application added manually');
@@ -63,6 +64,18 @@ export function ApplicationForm({ onSuccess }: ApplicationFormProps) {
           value={dateApplied} 
           onChange={(e) => setDateApplied(e.target.value)} 
         />
+      </div>
+      <div className="flex items-center gap-2 pt-2 pb-4">
+        <input 
+          type="checkbox" 
+          id="createReminder" 
+          checked={createReminder} 
+          onChange={(e) => setCreateReminder(e.target.checked)} 
+          className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+        />
+        <Label htmlFor="createReminder" className="text-sm font-medium cursor-pointer">
+          Create follow-up reminder (7 days)
+        </Label>
       </div>
       <Button type="submit" className="w-full" disabled={createMutation.isPending}>
         {createMutation.isPending ? 'Adding...' : 'Add Application'}

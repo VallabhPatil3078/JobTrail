@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import api from '@/api/axios';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/ThemeProvider';
+import { RemindersPanel } from '@/features/reminders/RemindersPanel';
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -93,6 +94,7 @@ export default function AppLayout() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto bg-muted/20 relative">
+        <RemindersPanel />
         <div className="h-full p-8 max-w-6xl mx-auto">
           <Outlet />
         </div>

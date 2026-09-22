@@ -12,6 +12,7 @@ import com.jobtrail.backend.security.UserDetailsServiceImpl;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.security.test.context.support.WithMockUser;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import java.util.Optional;
 import java.util.List;
@@ -34,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "jwt.secret=test-jwt-secret-1234567890"
     }
 )
-@AutoConfigureMockMvc(addFilters = false) // Bypass Spring Security for controller unit tests
+@AutoConfigureMockMvc
 class GmailControllerTest {
 
     @Autowired
@@ -70,6 +71,7 @@ class GmailControllerTest {
     }
 
     @Test
+    @WithMockUser
     void callback_ShouldExchangeCodeAndRedirect() throws Exception {
         String mockCode = "mock_auth_code_123";
         String mockState = "mock_state_token";
@@ -84,9 +86,16 @@ class GmailControllerTest {
     }
 
     @Test
+    void syncNow_Unauthenticated_ShouldReturn401() throws Exception {
+        mockMvc.perform(post("/api/gmail/sync").with(csrf()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
     void syncNow_ShouldTriggerSyncAndReturnOk() throws Exception {
         when(gmailService.triggerManualSync()).thenReturn(true);
-        mockMvc.perform(post("/api/gmail/sync"))
+        mockMvc.perform(post("/api/gmail/sync").with(csrf()))
                 .andExpect(status().isOk());
     }
 }

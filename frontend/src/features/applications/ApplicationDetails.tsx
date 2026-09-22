@@ -6,8 +6,10 @@ import { StatusChip } from './StatusChip';
 import { useApplicationHistory, useUpdateApplicationStatus, useDeleteApplication } from '@/hooks/useApplications';
 import type { Application, ApplicationStatus } from '@/hooks/useApplications';
 import { format } from 'date-fns';
-import { Calendar, Building2, Briefcase, Mail, Trash2 } from 'lucide-react';
+import { Calendar, Building2, Briefcase, Mail, Trash2, Bell, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { useReminders, useCompleteReminder } from '@/hooks/useReminders';
+import { Label } from '@/components/ui/label';
 
 interface ApplicationDetailsProps {
   application: Application | null;
@@ -26,10 +28,13 @@ const VALID_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
 
 export function ApplicationDetails({ application, open, onOpenChange }: ApplicationDetailsProps) {
   const [newStatus, setNewStatus] = useState<ApplicationStatus | null>(null);
+  const [createReminder, setCreateReminder] = useState(false);
   
   const historyQuery = useApplicationHistory(application?.id ?? 0, !!application && open);
   const updateStatusMutation = useUpdateApplicationStatus();
   const deleteMutation = useDeleteApplication();
+  const { data: reminders } = useReminders();
+  const completeMutation = useCompleteReminder();
 
   if (!application) return null;
 
@@ -38,7 +43,7 @@ export function ApplicationDetails({ application, open, onOpenChange }: Applicat
   const handleStatusUpdate = () => {
     if (!newStatus) return;
     updateStatusMutation.mutate(
-      { id: application.id, status: newStatus },
+      { id: application.id, status: newStatus, createReminder },
       {
         onSuccess: () => {
           toast.success('Status updated');
@@ -126,8 +131,56 @@ export function ApplicationDetails({ application, open, onOpenChange }: Applicat
                   Update
                 </Button>
               </div>
+              <div className="flex items-center gap-2 mt-2">
+                <input 
+                  type="checkbox" 
+                  id="status-reminder" 
+                  checked={createReminder} 
+                  onChange={(e) => setCreateReminder(e.target.checked)} 
+                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <Label htmlFor="status-reminder" className="text-sm font-medium cursor-pointer">
+                  Create follow-up reminder
+                </Label>
+              </div>
             </div>
           )}
+
+          {/* Reminders Section */}
+          {reminders?.filter(r => r.applicationId === application.id).length ? (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Bell className="w-5 h-5 text-amber-500" />
+                Active Reminders
+              </h3>
+              <div className="space-y-2">
+                {reminders.filter(r => r.applicationId === application.id).map(reminder => (
+                  <div key={reminder.id} className="flex justify-between items-center p-3 border rounded-md bg-amber-50/50 dark:bg-amber-950/20">
+                    <div>
+                      <div className="font-medium text-sm flex items-center gap-2">
+                        {reminder.type === 'INTERVIEW_PREP' ? 'Interview Prep' : 'Follow Up'}
+                        {new Date(reminder.dueDate) < new Date() && (
+                          <span className="text-xs bg-red-100 text-red-600 px-1.5 rounded-full uppercase tracking-wider font-bold">Overdue</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Due: {new Date(reminder.dueDate).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => completeMutation.mutate(reminder.id)}
+                      disabled={completeMutation.isPending}
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Complete
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {/* Timeline Section */}
           <div className="space-y-4">

@@ -2,19 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/api/axios';
 
 export interface FunnelStats {
-  appliedCount: number;
-  oaCount: number;
-  interviewCount: number;
-  offerCount: number;
-  rejectedCount: number;
-  withdrawnCount: number;
+  total: number;
+  active: number;
+  responseRate: number;
+  emailDetectedPct: number;
+  stages: {
+    OA: number;
+    INTERVIEW: number;
+    OFFER: number;
+  };
 }
 
 export const useStats = () => {
   return useQuery({
     queryKey: ['stats'],
     queryFn: async (): Promise<FunnelStats> => {
-      const res = await api.get('/stats/funnel');
+      const res = await api.get('/stats');
       return res.data;
     },
   });

@@ -8,7 +8,7 @@ import { Mail, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface GmailStatus {
-  status: 'CONNECTED' | 'DISCONNECTED';
+  status: 'CONNECTED' | 'DISCONNECTED' | 'NEEDS_RECONNECT';
   lastSyncedAt: string;
 }
 
@@ -104,9 +104,22 @@ export default function SettingsPage() {
                   {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
                 </Button>
               </div>
-            ) : (
+            ) : status?.status === 'NEEDS_RECONNECT' ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500 font-medium">
+                  <AlertCircle className="w-5 h-5" />
+                  Connection needs to be renewed
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Your Gmail connection token has expired or failed. Please reconnect.
+                </p>
+                <Button onClick={handleConnect}>
+                  Reconnect Gmail
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-muted-foreground font-medium">
                   <AlertCircle className="w-5 h-5" />
                   Not connected
                 </div>

@@ -25,8 +25,13 @@ public class User {
     @Column(name = "encrypted_refresh_token", length = 512)
     private String encryptedRefreshToken;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "gmail_connection_status", nullable = false)
-    private String gmailConnectionStatus = "DISCONNECTED";
+    private GmailConnectionStatus gmailConnectionStatus = GmailConnectionStatus.DISCONNECTED;
+
+    public enum GmailConnectionStatus {
+        CONNECTED, DISCONNECTED, NEEDS_RECONNECT
+    }
 
     @Column(name = "last_synced_at")
     private LocalDateTime lastSyncedAt;

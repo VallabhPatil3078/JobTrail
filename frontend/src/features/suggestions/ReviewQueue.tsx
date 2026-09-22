@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSuggestions, useConfirmSuggestion, useRejectSuggestion } from '@/hooks/useSuggestions';
+import type { SuggestedApplication } from '@/hooks/useSuggestions';
 import { SuggestionCard } from './SuggestionCard';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -10,6 +12,7 @@ import { toast } from 'sonner';
 
 export default function ReviewQueue() {
   const { data: suggestions, isLoading, isError, refetch } = useSuggestions();
+  const queryClient = useQueryClient();
   const confirmMutation = useConfirmSuggestion();
   const rejectMutation = useRejectSuggestion();
   
@@ -46,21 +49,13 @@ export default function ReviewQueue() {
   const handleReject = useCallback(() => {
     if (!suggestions || suggestions.length === 0) return;
     const current = suggestions[selectedIndex];
-    rejectMutation.mutate(current.id, {
-      onSuccess: () => {
-        toast.success(`Rejected suggestion for ${current.extractedCompany}`);
-        setSelectedIndex((prev) => (prev >= maxIndex ? Math.max(0, maxIndex - 1) : prev));
-      },
-      onError: () => {
-        toast.error('Failed to reject suggestion');
-      }
-    });
-  }, [suggestions, selectedIndex, maxIndex, rejectMutation]);
+    onCardReject(current.id);
+  }, [suggestions, selectedIndex]);
 
   // Handle direct confirms/rejects from the card (bypassing keyboard)
-  const onCardConfirm = (id: number, company: string, role?: string) => {
+  const onCardConfirm = (id: number, company: string, role?: string, createReminder?: boolean) => {
     confirmMutation.mutate(
-      { id, company, role },
+      { id, company, role, createReminder },
       {
         onSuccess: () => {
           toast.success(`Confirmed application for ${company}`);
@@ -74,12 +69,28 @@ export default function ReviewQueue() {
   };
 
   const onCardReject = (id: number) => {
-    rejectMutation.mutate(id, {
-      onSuccess: () => {
-        toast.success(`Rejected suggestion`);
-        setSelectedIndex((prev) => (prev >= maxIndex ? Math.max(0, maxIndex - 1) : prev));
-      }
+    // Optimistic hide
+    const currentList = queryClient.getQueryData<SuggestedApplication[]>(['suggestions']);
+    if (currentList) {
+      queryClient.setQueryData(['suggestions'], currentList.filter(s => s.id !== id));
+    }
+    
+    const timer = setTimeout(() => {
+      rejectMutation.mutate(id);
+    }, 5000);
+
+    toast(`Rejected suggestion`, {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          clearTimeout(timer);
+          if (currentList) queryClient.setQueryData(['suggestions'], currentList);
+          toast.success('Restored suggestion');
+        },
+      },
+      duration: 5000,
     });
+    setSelectedIndex((prev) => (prev >= maxIndex ? Math.max(0, maxIndex - 1) : prev));
   };
 
   useKeyboardShortcuts({

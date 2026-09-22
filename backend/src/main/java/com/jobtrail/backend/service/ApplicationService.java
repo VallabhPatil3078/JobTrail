@@ -13,6 +13,7 @@ import com.jobtrail.backend.model.StatusHistory;
 import com.jobtrail.backend.repository.ApplicationRepository;
 import com.jobtrail.backend.repository.StatusHistoryRepository;
 import com.jobtrail.backend.repository.RawEmailRepository;
+import com.jobtrail.backend.model.Reminder.ReminderType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class ApplicationService {
     private final StatusHistoryRepository statusHistoryRepository;
     private final ApplicationMapper applicationMapper;
     private final RawEmailRepository rawEmailRepository;
+    private final ReminderService reminderService;
 
     // State Machine Validation Map
     private static final Map<StatusEnum, Set<StatusEnum>> VALID_TRANSITIONS = Map.of(
@@ -62,6 +64,11 @@ public class ApplicationService {
             application.setSourceRawEmail(rawEmailRepository.getReferenceById(request.sourceRawEmailId()));
         }
         Application saved = applicationRepository.save(application);
+        
+        if (Boolean.TRUE.equals(request.createReminder())) {
+            reminderService.createOrUpdateReminder(saved.getId(), ReminderType.FOLLOW_UP, java.time.LocalDateTime.now().plusDays(7));
+        }
+        
         return applicationMapper.toResponse(saved);
     }
 
@@ -119,6 +126,12 @@ public class ApplicationService {
         // Update application
         application.setStatus(targetStatus);
         Application saved = applicationRepository.save(application);
+
+        if (Boolean.TRUE.equals(request.createReminder())) {
+            ReminderType type = (targetStatus == StatusEnum.INTERVIEW) ? ReminderType.INTERVIEW_PREP : ReminderType.FOLLOW_UP;
+            long days = (targetStatus == StatusEnum.INTERVIEW) ? 2 : 7;
+            reminderService.createOrUpdateReminder(saved.getId(), type, java.time.LocalDateTime.now().plusDays(days));
+        }
 
         return applicationMapper.toResponse(saved);
     }

@@ -60,6 +60,11 @@ public class SecurityConfig {
                 }))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((req, res, e) -> {
+                    res.setStatus(401);
+                    res.setContentType("application/json");
+                    res.getWriter().write("{\"error\":\"Unauthorized\"}");
+                }))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/api/gmail/callback").permitAll()
                         .anyRequest().authenticated())
