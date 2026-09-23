@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, X, Pencil, Mail, Building2, Briefcase, Calendar } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,11 @@ export function SuggestionCard({
   // Instead of complex imperative handles, we can just pass `isEditing` from parent, but keeping it local is simpler.
   // Let's let the parent pass an `isEditing` prop, or we can listen to window keydown if `isSelected`.
   
+  const handleConfirm = useCallback(() => {
+    onConfirm(suggestion.id, company, role, createReminder);
+    setIsEditing(false);
+  }, [onConfirm, suggestion.id, company, role, createReminder]);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!isSelected) return;
@@ -64,12 +69,7 @@ export function SuggestionCard({
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isSelected, company, role]);
-
-  const handleConfirm = () => {
-    onConfirm(suggestion.id, company, role, createReminder);
-    setIsEditing(false);
-  };
+  }, [isSelected, company, role, handleConfirm]);
 
   const confidenceLevel = suggestion.confidenceScore >= 80 ? 'High' : suggestion.confidenceScore >= 50 ? 'Medium' : 'Low';
   const confidenceColor = suggestion.confidenceScore >= 80 ? 'text-green-500' : suggestion.confidenceScore >= 50 ? 'text-amber-500' : 'text-red-500';
@@ -84,7 +84,7 @@ export function SuggestionCard({
     >
       <div className="flex flex-col md:flex-row h-full">
         {/* Email Context Section */}
-        <div className="flex-1 p-6 border-b md:border-b-0 md:border-r border-border bg-muted/20">
+        <div className="w-full md:w-1/2 min-w-0 p-4 md:p-6 border-b md:border-b-0 md:border-r border-border bg-muted/20">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Mail className="w-4 h-4" />
@@ -107,7 +107,7 @@ export function SuggestionCard({
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase font-semibold">Sender</p>
-              <p className="text-sm truncate">{suggestion.rawEmail.sender}</p>
+              <p className="text-sm truncate max-w-full">{suggestion.rawEmail.sender}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase font-semibold">Snippet</p>
@@ -119,7 +119,7 @@ export function SuggestionCard({
         </div>
 
         {/* Extraction Section */}
-        <div className="flex-1 p-6 flex flex-col justify-between">
+        <div className="w-full md:w-1/2 min-w-0 p-4 md:p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium">Extracted Data</span>
@@ -152,18 +152,18 @@ export function SuggestionCard({
                   <div className="p-2 bg-primary/10 rounded-md">
                     <Building2 className="w-5 h-5 text-primary" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground uppercase font-semibold">Company</p>
-                    <p className="font-medium text-lg">{company}</p>
+                    <p className="font-medium text-lg truncate">{company}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-md">
                     <Briefcase className="w-5 h-5 text-primary" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground uppercase font-semibold">Role</p>
-                    <p className="font-medium">{role || 'Not specified'}</p>
+                    <p className="font-medium truncate">{role || 'Not specified'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -193,7 +193,7 @@ export function SuggestionCard({
             </Label>
           </div>
 
-          <div className="flex items-center justify-end gap-2 mt-2">
+          <div className="flex flex-col sm:flex-row flex-wrap sm:items-center justify-end gap-2 mt-4">
             {isEditing ? (
               <>
                 <Button variant="ghost" size="sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setIsEditing(false); }}>
@@ -228,7 +228,7 @@ export function SuggestionCard({
                   onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleConfirm(); }}
                   disabled={isConfirming}
                 >
-                  <Check className="w-4 h-4 mr-1" />
+                  <Check className="w-4 h-4 mr-1 md:mr-2" />
                   Confirm (C)
                 </Button>
               </>

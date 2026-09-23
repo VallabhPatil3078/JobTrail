@@ -12,13 +12,15 @@ interface GmailStatus {
   lastSyncedAt: string;
 }
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
+  const [resumeText, setResumeText] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -39,6 +41,28 @@ export default function SettingsPage() {
     },
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ['user-profile'],
+    queryFn: async () => {
+      const res = await api.get('/users/me');
+      return res.data;
+    },
+  });
+
+  const updateResumeMutation = useMutation({
+    mutationFn: async (text: string) => {
+      await api.put('/users/me/resume', { resumeText: text });
+    },
+    onSuccess: () => {
+      toast.success('Resume updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['match'] });
+    },
+    onError: () => {
+      toast.error('Failed to update resume');
+    }
+  });
+
   const syncMutation = useMutation({
     mutationFn: async () => {
       await api.post('/gmail/sync');
@@ -57,6 +81,7 @@ export default function SettingsPage() {
       const res = await api.get<{url: string}>('/gmail/auth-url');
       window.location.href = res.data.url;
     } catch (err) {
+      console.error(err);
       toast.error('Failed to get authorization URL');
     }
   };
@@ -127,6 +152,43 @@ export default function SettingsPage() {
                   Connect Gmail
                 </Button>
               </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CardTitle>Resume Text</CardTitle>
+          </div>
+          <CardDescription>
+            Paste your resume text here. This will be used to calculate keyword overlap with job descriptions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Textarea 
+                placeholder="Paste your resume text here..." 
+                className="min-h-[200px]"
+                value={resumeText}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setResumeText(e.target.value)}
+              />
+              <div className="text-xs text-muted-foreground text-right">
+                {resumeText.length} characters
+              </div>
+            </div>
+            <Button 
+              onClick={() => updateResumeMutation.mutate(resumeText)}
+              disabled={updateResumeMutation.isPending || !resumeText}
+            >
+              {updateResumeMutation.isPending ? 'Saving...' : 'Save Resume'}
+            </Button>
+            {profile?.hasResumeText && (
+              <p className="text-sm text-green-600 dark:text-green-500 font-medium flex items-center gap-1">
+                <CheckCircle2 className="w-4 h-4" /> Resume is currently saved
+              </p>
             )}
           </div>
         </CardContent>

@@ -13,7 +13,9 @@ import com.jobtrail.backend.model.StatusHistory;
 import com.jobtrail.backend.repository.ApplicationRepository;
 import com.jobtrail.backend.repository.StatusHistoryRepository;
 import com.jobtrail.backend.repository.RawEmailRepository;
+import com.jobtrail.backend.repository.UserRepository;
 import com.jobtrail.backend.model.Reminder.ReminderType;
+import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,8 @@ public class ApplicationService {
     private final ApplicationMapper applicationMapper;
     private final RawEmailRepository rawEmailRepository;
     private final ReminderService reminderService;
+    private final UserRepository userRepository;
+    private final KeywordMatcherService keywordMatcherService;
 
     // State Machine Validation Map
     private static final Map<StatusEnum, Set<StatusEnum>> VALID_TRANSITIONS = Map.of(
@@ -154,5 +158,25 @@ public class ApplicationService {
                         history.getSource()
                 ))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public com.jobtrail.backend.dto.MatchDto.MatchResult getKeywordMatch(Long id) {
+        Application application = applicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
+
+        if (application.getJobDescription() == null || application.getJobDescription().isBlank()) {
+            throw new IllegalArgumentException("Job description is required for keyword matching");
+        }
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        com.jobtrail.backend.model.User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (user.getResumeText() == null || user.getResumeText().isBlank()) {
+            throw new IllegalArgumentException("Resume text is required for keyword matching");
+        }
+
+        return keywordMatcherService.match(user.getResumeText(), application.getJobDescription());
     }
 }

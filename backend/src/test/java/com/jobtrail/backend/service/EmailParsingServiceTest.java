@@ -97,6 +97,36 @@ class EmailParsingServiceTest {
     }
 
     @Test
+    void shouldExtractCompanyFromNonAtsDomainAndCleanDisplayName() {
+        email.setSender("IBM Talent Acquisition <noreply@ibm.com>");
+        email.setSubject("Your Application"); // Subject regex won't match company
+        
+        when(rawEmailRepository.findByProcessedFalse()).thenReturn(List.of(email));
+        emailParsingService.processUnprocessedEmails();
+        
+        verify(suggestedApplicationRepository).save(suggestionCaptor.capture());
+        SuggestedApplication saved = suggestionCaptor.getValue();
+        
+        assertThat(saved.getExtractedCompany()).isEqualTo("Ibm"); // Domain extraction prioritizes but cleans up. Actually domainToCompanyName("ibm.com") returns "Ibm"
+        assertThat(saved.getConfidenceScore()).isEqualTo(40.0);
+    }
+    
+    @Test
+    void shouldNotExtractCompanyFromAtsDomain() {
+        email.setSender("Greenhouse Mail <noreply@greenhouse-mail.io>");
+        email.setSubject("Applying to Software Engineer at Stripe");
+        
+        when(rawEmailRepository.findByProcessedFalse()).thenReturn(List.of(email));
+        emailParsingService.processUnprocessedEmails();
+        
+        verify(suggestedApplicationRepository).save(suggestionCaptor.capture());
+        SuggestedApplication saved = suggestionCaptor.getValue();
+        
+        assertThat(saved.getExtractedCompany()).isEqualTo("Stripe");
+        assertThat(saved.getConfidenceScore()).isEqualTo(90.0); // ATS (40) + Subject (50)
+    }
+
+    @Test
     void shouldMarkProcessedButCreateNoSuggestionIfExtractionFails() {
         email.setSender("friend@example.com");
         email.setSubject("Lunch tomorrow?");

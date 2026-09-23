@@ -25,6 +25,9 @@ public class User {
     @Column(name = "encrypted_refresh_token", length = 512)
     private String encryptedRefreshToken;
 
+    @Column(name = "resume_text", columnDefinition = "TEXT")
+    private String resumeText;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "gmail_connection_status", nullable = false)
     private GmailConnectionStatus gmailConnectionStatus = GmailConnectionStatus.DISCONNECTED;

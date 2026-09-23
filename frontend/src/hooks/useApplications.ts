@@ -16,6 +16,8 @@ export interface Application {
   id: number;
   company: string;
   role: string;
+  jobDescription?: string;
+  jobUrl?: string;
   status: ApplicationStatus;
   dateApplied: string;
   source: string;
@@ -86,6 +88,19 @@ export const useDeleteApplication = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+};
+
+export const useUpdateApplication = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Application> }) => {
+      const res = await api.put(`/applications/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
     },
   });
 };

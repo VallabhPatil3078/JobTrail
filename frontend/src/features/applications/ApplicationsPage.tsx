@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApplications } from '@/hooks/useApplications';
-import type { Application } from '@/hooks/useApplications';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StatusChip } from './StatusChip';
 import { ApplicationDetails } from './ApplicationDetails';
@@ -12,8 +11,16 @@ import { Plus } from 'lucide-react';
 
 export default function ApplicationsPage() {
   const { data: applications, isLoading, isError, refetch } = useApplications();
-  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [selectedAppId, setSelectedAppId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const selectedApp = applications?.find(app => app.id === selectedAppId) || null;
+
+  useEffect(() => {
+    if (selectedAppId && applications && !selectedApp) {
+      setSelectedAppId(null);
+    }
+  }, [selectedAppId, applications, selectedApp]);
 
   if (isLoading) return <LoadingState message="Loading applications..." />;
   if (isError) return <ErrorState onRetry={() => refetch()} />;
@@ -51,7 +58,7 @@ export default function ApplicationsPage() {
               <TableRow 
                 key={app.id} 
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => setSelectedApp(app)}
+                onClick={() => setSelectedAppId(app.id)}
               >
                 <TableCell className="font-medium">{app.company}</TableCell>
                 <TableCell>{app.role}</TableCell>
@@ -76,8 +83,8 @@ export default function ApplicationsPage() {
 
       <ApplicationDetails 
         application={selectedApp} 
-        open={!!selectedApp} 
-        onOpenChange={(open) => !open && setSelectedApp(null)} 
+        open={!!selectedAppId} 
+        onOpenChange={(open) => !open && setSelectedAppId(null)} 
       />
     </div>
   );
