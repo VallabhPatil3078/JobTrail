@@ -81,13 +81,21 @@ public class EmailParsingService {
             }
         }
 
-        // 3. Fallback heuristics if regex didn't catch the company perfectly
+        // 3. Heuristics if regex didn't catch the company perfectly
         if (extractedCompany == null && subject.toLowerCase().contains("application")) {
-            // Very naive fallback: Try to extract sender name (e.g. "Google <no-reply@google.com>" -> "Google")
-            int bracketIndex = sender.indexOf("<");
-            if (bracketIndex > 0) {
-                extractedCompany = sender.substring(0, bracketIndex).trim();
-                confidence += 20.0;
+            if (domain != null && !isAtsDomain(domain)) {
+                int bracketIndex = sender.indexOf("<");
+                if (bracketIndex > 0) {
+                    String displayName = sender.substring(0, bracketIndex).trim();
+                    extractedCompany = cleanCompanyName(displayName);
+                }
+                
+                if (extractedCompany == null || extractedCompany.isEmpty() || extractedCompany.contains("@") || extractedCompany.equalsIgnoreCase(domainToCompanyName(domain))) {
+                    extractedCompany = domainToCompanyName(domain);
+                    confidence += 40.0;
+                } else {
+                    confidence += 20.0;
+                }
             }
         }
 
@@ -131,5 +139,38 @@ public class EmailParsingService {
                domain.equals("myworkday.com") || domain.endsWith(".myworkday.com") ||
                domain.equals("ashbyhq.com") || domain.endsWith(".ashbyhq.com") ||
                domain.equals("workable.com") || domain.endsWith(".workable.com");
+    }
+
+    private String domainToCompanyName(String domain) {
+        if (domain == null) return null;
+        String[] parts = domain.split("\\.");
+        if (parts.length == 0) return domain;
+        
+        String name = parts[0];
+        if (name.length() > 0) {
+            return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+        }
+        return name;
+    }
+
+    private String cleanCompanyName(String displayName) {
+        if (displayName == null) return null;
+        
+        if (displayName.startsWith("\"") && displayName.endsWith("\"")) {
+            displayName = displayName.substring(1, displayName.length() - 1);
+        }
+        
+        String lower = displayName.toLowerCase();
+        String[] suffixes = {
+            " talent acquisition", " recruiting", " careers", " hr", 
+            " people & culture", " people and culture", " hiring", " talent team", " team"
+        };
+        
+        for (String suffix : suffixes) {
+            if (lower.endsWith(suffix)) {
+                return displayName.substring(0, displayName.length() - suffix.length()).trim();
+            }
+        }
+        return displayName.trim();
     }
 }

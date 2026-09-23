@@ -59,4 +59,9 @@ public class ApplicationController {
             @PathVariable Long id) {
         return ResponseEntity.ok(applicationService.getApplicationHistory(id));
     }
+
+    @GetMapping("/{id}/match")
+    public ResponseEntity<com.jobtrail.backend.dto.MatchDto.MatchResult> getKeywordMatch(@PathVariable Long id) {
+        return ResponseEntity.ok(applicationService.getKeywordMatch(id));
+    }
 }

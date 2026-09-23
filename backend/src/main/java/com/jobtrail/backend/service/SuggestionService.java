@@ -48,6 +48,13 @@ public class SuggestionService {
         List<Application> existingApps = applicationRepository.findByCompanyIgnoreCase(company);
         for (Application app : existingApps) {
             if (app.getRole() != null && app.getRole().equalsIgnoreCase(role)) {
+                
+                String existingUrl = app.getJobUrl();
+                String newUrl = request.jobUrl();
+                if (existingUrl != null && !existingUrl.isBlank() && newUrl != null && !newUrl.isBlank() && !existingUrl.equals(newUrl)) {
+                    continue; // They have different URLs, let it through silently!
+                }
+                
                 if (app.getDateApplied() != null && dateApplied != null) {
                     long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(app.getDateApplied(), dateApplied);
                     if (Math.abs(daysBetween) <= 3) {
@@ -64,7 +71,7 @@ public class SuggestionService {
                 company,
                 role,
                 null, // jobDescription
-                null, // jobUrl
+                request.jobUrl(), // jobUrl
                 dateApplied,
                 Application.DataSourceEnum.EMAIL_DETECTED,
                 suggestion.getConfidenceScore(),

@@ -28,32 +28,8 @@ export default function ReviewQueue() {
     setSelectedIndex((prev) => Math.max(prev - 1, 0));
   }, []);
 
-  const handleConfirm = useCallback(() => {
-    if (!suggestions || suggestions.length === 0) return;
-    const current = suggestions[selectedIndex];
-    confirmMutation.mutate(
-      { id: current.id, company: current.extractedCompany, role: current.extractedRole || undefined },
-      {
-        onSuccess: () => {
-          toast.success(`Confirmed application for ${current.extractedCompany}`);
-          // Adjust index if we are at the end
-          setSelectedIndex((prev) => (prev >= maxIndex ? Math.max(0, maxIndex - 1) : prev));
-        },
-        onError: (err: any) => {
-          toast.error(err.response?.data?.title || 'Failed to confirm suggestion');
-        }
-      }
-    );
-  }, [suggestions, selectedIndex, maxIndex, confirmMutation]);
-
-  const handleReject = useCallback(() => {
-    if (!suggestions || suggestions.length === 0) return;
-    const current = suggestions[selectedIndex];
-    onCardReject(current.id);
-  }, [suggestions, selectedIndex]);
-
   // Handle direct confirms/rejects from the card (bypassing keyboard)
-  const onCardConfirm = (id: number, company: string, role?: string, createReminder?: boolean) => {
+  const onCardConfirm = useCallback((id: number, company: string, role?: string, createReminder?: boolean) => {
     confirmMutation.mutate(
       { id, company, role, createReminder },
       {
@@ -66,9 +42,9 @@ export default function ReviewQueue() {
         }
       }
     );
-  };
+  }, [confirmMutation, maxIndex]);
 
-  const onCardReject = (id: number) => {
+  const onCardReject = useCallback((id: number) => {
     // Optimistic hide
     const currentList = queryClient.getQueryData<SuggestedApplication[]>(['suggestions']);
     if (currentList) {
@@ -91,7 +67,19 @@ export default function ReviewQueue() {
       duration: 5000,
     });
     setSelectedIndex((prev) => (prev >= maxIndex ? Math.max(0, maxIndex - 1) : prev));
-  };
+  }, [queryClient, rejectMutation, maxIndex]);
+
+  const handleConfirm = useCallback(() => {
+    if (!suggestions || suggestions.length === 0) return;
+    const current = suggestions[selectedIndex];
+    onCardConfirm(current.id, current.extractedCompany, current.extractedRole || undefined);
+  }, [suggestions, selectedIndex, onCardConfirm]);
+
+  const handleReject = useCallback(() => {
+    if (!suggestions || suggestions.length === 0) return;
+    const current = suggestions[selectedIndex];
+    onCardReject(current.id);
+  }, [suggestions, selectedIndex, onCardReject]);
 
   useKeyboardShortcuts({
     'j': handleNext,

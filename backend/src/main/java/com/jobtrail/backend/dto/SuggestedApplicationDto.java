@@ -29,6 +29,7 @@ public class SuggestedApplicationDto {
     public record SuggestionConfirmRequest(
             @NotBlank(message = "Company is required") String company,
             String role,
+            String jobUrl,
             LocalDate dateApplied,
             Boolean createReminder
     ) {}
