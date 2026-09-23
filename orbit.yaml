@@ -15,16 +15,15 @@ tasks:
   frontend_lint:
     command: "npm run lint"
     working_dir: "frontend"
-    trigger_paths: ["frontend/src/**", "frontend/package.json", "frontend/tsconfig*.json"]
+    trigger_paths: ["frontend/src/**", "frontend/package.json", "frontend/package-lock.json", "frontend/tsconfig*.json"]
 
   frontend_test:
     command: "npm run test"
-    depends_on: ["frontend_lint"]
     working_dir: "frontend"
-    trigger_paths: ["frontend/src/**", "frontend/package.json", "frontend/vitest.config.ts", "frontend/src/test/**"]
+    trigger_paths: ["frontend/src/**", "frontend/package.json", "frontend/package-lock.json", "frontend/vitest.config.ts", "frontend/src/test/**"]
 
   frontend_build:
     command: "npm run build"
-    depends_on: ["frontend_test"]
+    depends_on: ["frontend_lint", "frontend_test"]
     working_dir: "frontend"
-    trigger_paths: ["frontend/src/**", "frontend/package.json", "frontend/vite.config.ts", "frontend/tsconfig*.json", "frontend/components.json"]
+    trigger_paths: ["frontend/src/**", "frontend/package.json", "frontend/package-lock.json", "frontend/vite.config.ts", "frontend/tsconfig*.json", "frontend/components.json"]
